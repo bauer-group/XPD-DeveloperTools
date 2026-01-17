@@ -76,8 +76,12 @@ def get_packages(org: str, package_type: Optional[str] = None, verbose: bool = T
                         print(f"{RED}no access (missing read:packages scope){NC}")
                     elif "404" in error:
                         print(f"{DIM}none found{NC}")
+                    elif "422" in error or "not supported" in error.lower():
+                        print(f"{DIM}not available{NC}")
                     else:
-                        print(f"{RED}error{NC}")
+                        # Show first line of error for debugging
+                        err_msg = error.split('\n')[0][:50] if error else "unknown"
+                        print(f"{RED}error: {err_msg}{NC}")
                 continue
 
             if output:
