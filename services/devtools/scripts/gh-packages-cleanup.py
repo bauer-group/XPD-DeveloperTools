@@ -53,25 +53,52 @@ def check_gh_auth() -> bool:
         return False
 
 
-def get_packages(org: str, package_type: Optional[str] = None) -> List[Dict]:
+def get_packages(org: str, package_type: Optional[str] = None, verbose: bool = True) -> List[Dict]:
     """Get all packages for an organization."""
     packages = []
 
     types_to_check = [package_type] if package_type else PACKAGE_TYPES
 
     for pkg_type in types_to_check:
-        output = run_gh([
-            "api", f"/orgs/{org}/packages?package_type={pkg_type}",
-            "--paginate"
-        ])
-        if output:
-            try:
-                pkgs = json.loads(output)
-                for pkg in pkgs:
-                    pkg["package_type"] = pkg_type
-                packages.extend(pkgs)
-            except json.JSONDecodeError:
-                pass
+        if verbose:
+            print(f"  Scanning {pkg_type}...", end=" ", flush=True)
+
+        # Run gh api and capture both stdout and stderr
+        cmd = ["gh", "api", f"/orgs/{org}/packages?package_type={pkg_type}", "--paginate"]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            output = result.stdout.strip()
+            error = result.stderr.strip()
+
+            if result.returncode != 0:
+                if verbose:
+                    if "403" in error or "read:packages" in error.lower():
+                        print(f"{RED}no access (missing read:packages scope){NC}")
+                    elif "404" in error:
+                        print(f"{DIM}none found{NC}")
+                    else:
+                        print(f"{RED}error{NC}")
+                continue
+
+            if output:
+                try:
+                    pkgs = json.loads(output)
+                    for pkg in pkgs:
+                        pkg["package_type"] = pkg_type
+                    packages.extend(pkgs)
+                    if verbose:
+                        print(f"{GREEN}{len(pkgs)} found{NC}")
+                except json.JSONDecodeError:
+                    if verbose:
+                        print(f"{RED}parse error{NC}")
+            else:
+                if verbose:
+                    print(f"{DIM}none{NC}")
+
+        except FileNotFoundError:
+            if verbose:
+                print(f"{RED}gh not found{NC}")
+            break
 
     return packages
 
@@ -293,9 +320,8 @@ Examples:
 
     # Get packages
     print(f"Scanning packages in {BOLD}{args.org}{NC}...")
+    packages = get_packages(args.org, args.type, verbose=True)
     print()
-
-    packages = get_packages(args.org, args.type)
 
     if args.package:
         packages = [p for p in packages if p["name"] == args.package]
