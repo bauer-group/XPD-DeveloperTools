@@ -63,6 +63,7 @@ show_help() {
     echo "    gh-secrets-audit [opts] Audit secrets across repos"
     echo "    gh-labels-sync [opts]   Sync labels between repos"
     echo "    gh-branch-protect [opt] Manage branch protection rules"
+    echo "    gh-packages-cleanup     Clean old package versions"
     echo ""
     echo -e "  ${CYAN}Git Advanced Tools (via container):${NC}"
     echo "    git-mirror [options]    Mirror repo between servers"
@@ -283,6 +284,11 @@ gh_branch_protection() {
     run_script "gh-branch-protection.py" "$@"
 }
 
+# GitHub Packages Cleanup
+gh_packages_cleanup() {
+    run_script "gh-packages-cleanup.py" "$@"
+}
+
 # Git Mirror
 git_mirror() {
     run_script "git-mirror.sh" "$@"
@@ -301,7 +307,7 @@ show_version() {
     echo "Components:"
     echo "  - DevTools Runtime Container (Git, Python, Shell)"
     echo "  - Git Tools (stats, cleanup, changelog, release, lfs-migrate, history-clean, branch-rename, split-repo, rewrite-commits, mirror, contributors)"
-    echo "  - GitHub Tools (gh-create, gh-topics, gh-archive, gh-workflow, gh-add-workflow, gh-clean-releases, gh-visibility, gh-clone-org, gh-sync-forks, gh-pr-cleanup, gh-secrets-audit, gh-labels-sync, gh-branch-protect)"
+    echo "  - GitHub Tools (gh-create, gh-topics, gh-archive, gh-workflow, gh-add-workflow, gh-clean-releases, gh-visibility, gh-clone-org, gh-sync-forks, gh-pr-cleanup, gh-secrets-audit, gh-labels-sync, gh-branch-protect, gh-packages-cleanup)"
 }
 
 # Hauptlogik
@@ -385,6 +391,9 @@ main() {
             ;;
         gh-branch-protect|gh-branch-protection)
             gh_branch_protection "$@"
+            ;;
+        gh-packages-cleanup)
+            gh_packages_cleanup "$@"
             ;;
         git-mirror|mirror)
             git_mirror "$@"

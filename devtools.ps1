@@ -61,6 +61,7 @@ function Show-Help {
     Write-Host "    gh-secrets-audit [opts] Audit secrets across repos"
     Write-Host "    gh-labels-sync [opts]   Sync labels between repos"
     Write-Host "    gh-branch-protect [opt] Manage branch protection rules"
+    Write-Host "    gh-packages-cleanup     Clean old package versions"
     Write-Host ""
     Write-Host "  Git Advanced Tools (via container):" -ForegroundColor Cyan
     Write-Host "    git-mirror [options]    Mirror repo between servers"
@@ -320,6 +321,12 @@ function Invoke-GhBranchProtection {
     Invoke-Script -Script "gh-branch-protection.py" -ScriptArgs $ProtectionArgs
 }
 
+# GitHub Packages Cleanup
+function Invoke-GhPackagesCleanup {
+    param([string[]]$CleanupArgs)
+    Invoke-Script -Script "gh-packages-cleanup.py" -ScriptArgs $CleanupArgs
+}
+
 # Git Mirror
 function Invoke-GitMirror {
     param([string[]]$MirrorArgs)
@@ -340,7 +347,7 @@ function Show-Version {
     Write-Host "Components:"
     Write-Host "  - DevTools Runtime Container (Git, Python, Shell)"
     Write-Host "  - Git Tools (stats, cleanup, changelog, release, lfs-migrate, history-clean, branch-rename, split-repo, rewrite-commits, mirror, contributors)"
-    Write-Host "  - GitHub Tools (gh-create, gh-topics, gh-archive, gh-workflow, gh-add-workflow, gh-clean-releases, gh-visibility, gh-clone-org, gh-sync-forks, gh-pr-cleanup, gh-secrets-audit, gh-labels-sync, gh-branch-protect)"
+    Write-Host "  - GitHub Tools (gh-create, gh-topics, gh-archive, gh-workflow, gh-add-workflow, gh-clean-releases, gh-visibility, gh-clone-org, gh-sync-forks, gh-pr-cleanup, gh-secrets-audit, gh-labels-sync, gh-branch-protect, gh-packages-cleanup)"
 }
 
 # Hauptlogik
@@ -429,6 +436,9 @@ switch ($Command.ToLower()) {
     }
     { $_ -in "gh-branch-protect", "gh-branch-protection" } {
         Invoke-GhBranchProtection -ProtectionArgs $Arguments
+    }
+    "gh-packages-cleanup" {
+        Invoke-GhPackagesCleanup -CleanupArgs $Arguments
     }
     { $_ -in "git-mirror", "mirror" } {
         Invoke-GitMirror -MirrorArgs $Arguments

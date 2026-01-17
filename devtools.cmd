@@ -40,6 +40,7 @@ if /i "%CMD%"=="gh-pr-cleanup" goto script
 if /i "%CMD%"=="gh-secrets-audit" goto script
 if /i "%CMD%"=="gh-labels-sync" goto script
 if /i "%CMD%"=="gh-branch-protect" goto script
+if /i "%CMD%"=="gh-packages-cleanup" goto script
 if /i "%CMD%"=="git-mirror" goto script
 if /i "%CMD%"=="mirror" goto script
 if /i "%CMD%"=="git-contributors" goto script
@@ -156,6 +157,7 @@ if /i "%CMD%"=="gh-pr-cleanup" set "S=gh-pr-cleanup.py"
 if /i "%CMD%"=="gh-secrets-audit" set "S=gh-secrets-audit.py"
 if /i "%CMD%"=="gh-labels-sync" set "S=gh-labels-sync.py"
 if /i "%CMD%"=="gh-branch-protect" set "S=gh-branch-protection.py"
+if /i "%CMD%"=="gh-packages-cleanup" set "S=gh-packages-cleanup.py"
 if /i "%CMD%"=="git-mirror" set "S=git-mirror.sh"
 if /i "%CMD%"=="mirror" set "S=git-mirror.sh"
 if /i "%CMD%"=="git-contributors" set "S=git-contributors.py"
@@ -212,6 +214,7 @@ echo   gh-pr-cleanup [opts]  Clean stale PRs and branches
 echo   gh-secrets-audit      Audit secrets across repos
 echo   gh-labels-sync [opts] Sync labels between repos
 echo   gh-branch-protect     Manage branch protection rules
+echo   gh-packages-cleanup   Clean old package versions
 echo   git-mirror [opts]     Mirror repo between servers
 echo   git-contributors      Show contributor statistics
 echo   help                  Show this help
