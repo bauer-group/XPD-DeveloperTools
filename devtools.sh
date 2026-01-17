@@ -11,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_NAME="bauer-devtools"
 CONTAINER_NAME="devtools-runtime"
 DATA_DIR="$SCRIPT_DIR/.data"
+TOOLS_CONFIG="$SCRIPT_DIR/tools.json"
 
 # Farben
 RED='\033[0;31m'
@@ -21,8 +22,40 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 BOLD='\033[1m'
 
+# Check if jq is available (for JSON parsing)
+check_jq() {
+    if ! command -v jq &> /dev/null; then
+        echo -e "${RED}[ERROR] jq is required but not installed.${NC}"
+        echo "Install with: brew install jq (macOS) or apt install jq (Linux)"
+        exit 1
+    fi
+}
+
+# Find script for a command
+find_script() {
+    local cmd="$1"
+    check_jq
+
+    if [[ ! -f "$TOOLS_CONFIG" ]]; then
+        echo ""
+        return
+    fi
+
+    # Search by command
+    local script
+    script=$(jq -r --arg cmd "$cmd" '
+        .categories[].tools[] |
+        select(.command == $cmd or (.aliases // [] | index($cmd) != null)) |
+        .script // ""
+    ' "$TOOLS_CONFIG" 2>/dev/null | head -1)
+
+    echo "$script"
+}
+
 # Hilfe anzeigen
 show_help() {
+    check_jq
+
     echo ""
     echo -e "${BOLD}${BLUE}╔═══════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${BOLD}${BLUE}║              DevTools - Developer Swiss Army Knife            ║${NC}"
@@ -33,42 +66,22 @@ show_help() {
     echo ""
     echo -e "${BOLD}Commands:${NC}"
     echo ""
-    echo -e "  ${CYAN}Runtime Container:${NC}"
-    echo "    shell [PROJECT_PATH]    Start interactive shell in DevTools container"
-    echo "    run <script> [args]     Run a script in the container"
-    echo "    build                   Build/rebuild the DevTools container"
-    echo ""
-    echo -e "  ${CYAN}Git Tools (via container):${NC}"
-    echo "    stats [PROJECT_PATH]    Show repository statistics"
-    echo "    cleanup [PROJECT_PATH]  Clean up branches and cache"
-    echo "    changelog [options]     Generate changelog"
-    echo "    release [options]       Manage releases"
-    echo "    lfs-migrate [options]   Migrate repository to Git LFS"
-    echo "    history-clean [opts]    Remove large files from git history"
-    echo "    branch-rename [opts]    Rename git branches (local + remote)"
-    echo "    split-repo [options]    Split monorepo into separate repos"
-    echo "    rewrite-commits [opts]  Rewrite commit messages (pattern-based)"
-    echo ""
-    echo -e "  ${CYAN}GitHub Tools (via container):${NC}"
-    echo "    gh-create [options]     Create GitHub repository"
-    echo "    gh-topics [options]     Manage repository topics"
-    echo "    gh-archive [options]    Archive repositories"
-    echo "    gh-workflow [options]   Trigger GitHub Actions workflows"
-    echo "    gh-add-workflow [opts]  Add workflow files to repos"
-    echo "    gh-clean-releases       Clean releases and tags"
-    echo "    gh-visibility [opts]    Change repo visibility (public/private)"
-    echo "    gh-clone-org [opts]     Clone all repos from organization"
-    echo "    gh-sync-forks [opts]    Sync forked repos with upstream"
-    echo "    gh-pr-cleanup [opts]    Clean stale PRs and branches"
-    echo "    gh-secrets-audit [opts] Audit secrets across repos"
-    echo "    gh-labels-sync [opts]   Sync labels between repos"
-    echo "    gh-branch-protect [opt] Manage branch protection rules"
-    echo "    gh-packages-cleanup     Clean old package versions"
-    echo ""
-    echo -e "  ${CYAN}Git Advanced Tools (via container):${NC}"
-    echo "    git-mirror [options]    Mirror repo between servers"
-    echo "    git-contributors [opts] Show contributor statistics"
-    echo ""
+
+    # Parse JSON and display help dynamically
+    if [[ -f "$TOOLS_CONFIG" ]]; then
+        jq -r '
+            .categories[] |
+            select(.id != "general") |
+            "  \u001b[0;36m\(.name):\u001b[0m",
+            (.tools[] |
+                .command + (if .aliases then " (" + (.aliases | join(", ")) + ")" else "" end) + (if .args then " " + .args else "" end) as $cmd |
+                (50 - ($cmd | length)) as $pad |
+                "    " + $cmd + (" " * (if $pad > 0 then $pad else 1 end)) + .description
+            ),
+            ""
+        ' "$TOOLS_CONFIG" 2>/dev/null || echo "  (tools.json not found or invalid)"
+    fi
+
     echo -e "  ${CYAN}General:${NC}"
     echo "    help                    Show this help"
     echo "    version                 Show version info"
@@ -171,143 +184,24 @@ run_script() {
         /bin/bash -lc "$script $*"
 }
 
-# Git-Statistiken
-git_stats() {
-    local project_path="${1:-$(pwd)}"
-    PROJECT_PATH="$project_path" run_script "git-stats.sh"
-}
-
-# Git-Cleanup
-git_cleanup() {
-    local project_path="${1:-$(pwd)}"
-    shift || true
-    PROJECT_PATH="$project_path" run_script "git-cleanup.sh" "$@"
-}
-
-# Changelog generieren
-git_changelog() {
-    run_script "git-changelog.py" "$@"
-}
-
-# Release verwalten
-git_release() {
-    run_script "git-release.py" "$@"
-}
-
-# LFS Migration
-git_lfs_migrate() {
-    run_script "git-lfs-migrate.sh" "$@"
-}
-
-# History Clean
-git_history_clean() {
-    run_script "git-history-clean.sh" "$@"
-}
-
-# Branch Rename
-git_branch_rename() {
-    run_script "git-branch-rename.sh" "$@"
-}
-
-# Split Repo
-git_split_repo() {
-    run_script "git-split-repo.py" "$@"
-}
-
-# Rewrite Commits
-git_rewrite_commits() {
-    run_script "git-rewrite-commits.py" "$@"
-}
-
-# GitHub Create Repo
-gh_create_repo() {
-    run_script "gh-create-repo.sh" "$@"
-}
-
-# GitHub Topic Manager
-gh_topic_manager() {
-    run_script "gh-topic-manager.py" "$@"
-}
-
-# GitHub Archive Repos
-gh_archive_repos() {
-    run_script "gh-archive-repos.py" "$@"
-}
-
-# GitHub Trigger Workflow
-gh_trigger_workflow() {
-    run_script "gh-trigger-workflow.sh" "$@"
-}
-
-# GitHub Add Workflow
-gh_add_workflow() {
-    run_script "gh-add-workflow.py" "$@"
-}
-
-# GitHub Clean Releases
-gh_clean_releases() {
-    run_script "gh-clean-releases.py" "$@"
-}
-
-# GitHub Visibility
-gh_visibility() {
-    run_script "gh-visibility.py" "$@"
-}
-
-# GitHub Clone Org
-gh_clone_org() {
-    run_script "gh-clone-org.sh" "$@"
-}
-
-# GitHub Sync Forks
-gh_sync_forks() {
-    run_script "gh-sync-forks.py" "$@"
-}
-
-# GitHub PR Cleanup
-gh_pr_cleanup() {
-    run_script "gh-pr-cleanup.py" "$@"
-}
-
-# GitHub Secrets Audit
-gh_secrets_audit() {
-    run_script "gh-secrets-audit.py" "$@"
-}
-
-# GitHub Labels Sync
-gh_labels_sync() {
-    run_script "gh-labels-sync.py" "$@"
-}
-
-# GitHub Branch Protection
-gh_branch_protection() {
-    run_script "gh-branch-protection.py" "$@"
-}
-
-# GitHub Packages Cleanup
-gh_packages_cleanup() {
-    run_script "gh-packages-cleanup.py" "$@"
-}
-
-# Git Mirror
-git_mirror() {
-    run_script "git-mirror.sh" "$@"
-}
-
-# Git Contributors
-git_contributors() {
-    run_script "git-contributors.py" "$@"
-}
-
 # Version
 show_version() {
+    check_jq
+
+    local tool_count=0
+    local cat_count=0
+
+    if [[ -f "$TOOLS_CONFIG" ]]; then
+        tool_count=$(jq '[.categories[].tools[]] | length' "$TOOLS_CONFIG" 2>/dev/null || echo "0")
+        cat_count=$(jq '.categories | length' "$TOOLS_CONFIG" 2>/dev/null || echo "0")
+    fi
+
     echo -e "${BOLD}DevTools${NC} v1.0.0"
     echo "Swiss Army Knife for Git-based Development"
     echo ""
     echo "Components:"
     echo "  - DevTools Runtime Container (Git, Python, Shell)"
-    echo "  - Git Tools (stats, cleanup, changelog, release, lfs-migrate, history-clean, branch-rename, split-repo, rewrite-commits, mirror, contributors)"
-    echo "  - GitHub Tools (gh-create, gh-topics, gh-archive, gh-workflow, gh-add-workflow, gh-clean-releases, gh-visibility, gh-clone-org, gh-sync-forks, gh-pr-cleanup, gh-secrets-audit, gh-labels-sync, gh-branch-protect, gh-packages-cleanup)"
+    echo "  - $tool_count tools across $cat_count categories"
 }
 
 # Hauptlogik
@@ -326,91 +220,34 @@ main() {
             check_docker
             build_image
             ;;
-        stats)
-            git_stats "$@"
-            ;;
-        cleanup)
-            git_cleanup "$@"
-            ;;
-        changelog)
-            git_changelog "$@"
-            ;;
-        release)
-            git_release "$@"
-            ;;
-        lfs-migrate|lfs)
-            git_lfs_migrate "$@"
-            ;;
-        history-clean)
-            git_history_clean "$@"
-            ;;
-        branch-rename)
-            git_branch_rename "$@"
-            ;;
-        split-repo)
-            git_split_repo "$@"
-            ;;
-        rewrite-commits)
-            git_rewrite_commits "$@"
-            ;;
-        gh-create)
-            gh_create_repo "$@"
-            ;;
-        gh-topics)
-            gh_topic_manager "$@"
-            ;;
-        gh-archive)
-            gh_archive_repos "$@"
-            ;;
-        gh-workflow)
-            gh_trigger_workflow "$@"
-            ;;
-        gh-add-workflow)
-            gh_add_workflow "$@"
-            ;;
-        gh-clean-releases)
-            gh_clean_releases "$@"
-            ;;
-        gh-visibility)
-            gh_visibility "$@"
-            ;;
-        gh-clone-org)
-            gh_clone_org "$@"
-            ;;
-        gh-sync-forks)
-            gh_sync_forks "$@"
-            ;;
-        gh-pr-cleanup)
-            gh_pr_cleanup "$@"
-            ;;
-        gh-secrets-audit)
-            gh_secrets_audit "$@"
-            ;;
-        gh-labels-sync)
-            gh_labels_sync "$@"
-            ;;
-        gh-branch-protect|gh-branch-protection)
-            gh_branch_protection "$@"
-            ;;
-        gh-packages-cleanup)
-            gh_packages_cleanup "$@"
-            ;;
-        git-mirror|mirror)
-            git_mirror "$@"
-            ;;
-        git-contributors|contributors)
-            git_contributors "$@"
+        help|--help|-h)
+            show_help
             ;;
         version|--version|-v)
             show_version
             ;;
-        help|--help|-h)
-            show_help
+        stats)
+            local project_path="${1:-$(pwd)}"
+            shift || true
+            PROJECT_PATH="$project_path" run_script "git-stats.sh" "$@"
+            ;;
+        cleanup)
+            local project_path="${1:-$(pwd)}"
+            shift || true
+            PROJECT_PATH="$project_path" run_script "git-cleanup.sh" "$@"
             ;;
         *)
-            echo -e "${RED}Unknown command: $cmd${NC}"
-            show_help
-            exit 1
+            # Dynamic lookup
+            local script
+            script=$(find_script "$cmd")
+
+            if [[ -n "$script" && "$script" != "null" ]]; then
+                run_script "$script" "$@"
+            else
+                echo -e "${RED}Unknown command: $cmd${NC}"
+                show_help
+                exit 1
+            fi
             ;;
     esac
 }

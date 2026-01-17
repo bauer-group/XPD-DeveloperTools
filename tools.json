@@ -1,0 +1,265 @@
+﻿{
+    "_generated":  "Auto-generated from script headers. Run: .\\scripts\\generate-tools-json.ps1",
+    "_source":  "services/devtools/scripts/*.sh, *.py",
+    "categories":  [
+                       {
+                           "id":  "runtime",
+                           "name":  "Runtime Container",
+                           "tools":  [
+                                         {
+                                             "command":  "shell",
+                                             "script":  null,
+                                             "description":  "Start interactive shell",
+                                             "args":  "[PROJECT_PATH]"
+                                         },
+                                         {
+                                             "command":  "run",
+                                             "script":  null,
+                                             "description":  "Run a script in the container",
+                                             "args":  "\u003cscript\u003e [args]"
+                                         },
+                                         {
+                                             "command":  "build",
+                                             "script":  null,
+                                             "description":  "Build/rebuild the container"
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "git",
+                           "name":  "Git Tools",
+                           "tools":  [
+                                         {
+                                             "command":  "git-branch-rename",
+                                             "script":  "git-branch-rename.sh",
+                                             "description":  "Rename git branches (local + remote)",
+                                             "args":  "\u003cold-name\u003e \u003cnew-name\u003e [--update-default]",
+                                             "aliases":  [
+                                                             "branch-rename"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-changelog",
+                                             "script":  "git-changelog.py",
+                                             "description":  "Generate changelog from git commits",
+                                             "args":  "[--format md|json] [--from \u003ctag\u003e]",
+                                             "aliases":  [
+                                                             "changelog"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-cleanup",
+                                             "script":  "git-cleanup.sh",
+                                             "description":  "Clean up branches, cache and optimize repository",
+                                             "args":  "[--dry-run] [--all]",
+                                             "aliases":  [
+                                                             "cleanup"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-contributors",
+                                             "script":  "git-contributors.py",
+                                             "description":  "Show contributor statistics for a repository",
+                                             "args":  "[--since \u003cdate\u003e] [--format table|json]",
+                                             "aliases":  [
+                                                             "contributors"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-history-clean",
+                                             "script":  "git-history-clean.sh",
+                                             "description":  "Remove large files from git history",
+                                             "args":  "[--size 10M] [--dry-run]",
+                                             "aliases":  [
+                                                             "history-clean"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-lfs-migrate",
+                                             "script":  "git-lfs-migrate.sh",
+                                             "description":  "Migrate repository to Git LFS for binary files",
+                                             "args":  "[--patterns \"*.zip,*.bin\"] [--dry-run]",
+                                             "aliases":  [
+                                                             "lfs-migrate",
+                                                             "lfs"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-mirror",
+                                             "script":  "git-mirror.sh",
+                                             "description":  "Mirror repository between git servers",
+                                             "args":  "\u003csource-url\u003e \u003ctarget-url\u003e",
+                                             "aliases":  [
+                                                             "mirror"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-release",
+                                             "script":  "git-release.py",
+                                             "description":  "Manage releases with semantic versioning",
+                                             "args":  "[major|minor|patch] [--dry-run]",
+                                             "aliases":  [
+                                                             "release"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-rewrite-commits",
+                                             "script":  "git-rewrite-commits.py",
+                                             "description":  "Rewrite commit messages based on patterns",
+                                             "args":  "[--pattern \"...\"] [--dry-run]",
+                                             "aliases":  [
+                                                             "rewrite-commits"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-split-repo",
+                                             "script":  "git-split-repo.py",
+                                             "description":  "Split monorepo into separate repositories",
+                                             "args":  "\u003cfolder\u003e [--target \u003curl\u003e]",
+                                             "aliases":  [
+                                                             "split-repo"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "git-stats",
+                                             "script":  "git-stats.sh",
+                                             "description":  "Show repository statistics",
+                                             "aliases":  [
+                                                             "stats"
+                                                         ]
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "github",
+                           "name":  "GitHub Tools",
+                           "tools":  [
+                                         {
+                                             "command":  "gh-add-workflow",
+                                             "script":  "gh-add-workflow.py",
+                                             "description":  "Add workflow files to GitHub repositories",
+                                             "args":  "\u003cworkflow-file\u003e [--topic \u003ctopic\u003e] [--repos \u003clist\u003e]"
+                                         },
+                                         {
+                                             "command":  "gh-archive-repos",
+                                             "script":  "gh-archive-repos.py",
+                                             "description":  "Archive GitHub repositories",
+                                             "args":  "[--topic \u003ctopic\u003e] [--older-than \u003cdays\u003e]",
+                                             "aliases":  [
+                                                             "gh-archive"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "gh-auth",
+                                             "script":  "gh-auth.sh",
+                                             "description":  "Manage GitHub CLI authentication (persistent)",
+                                             "args":  "[login|logout|status|refresh|switch]"
+                                         },
+                                         {
+                                             "command":  "gh-branch-protection",
+                                             "script":  "gh-branch-protection.py",
+                                             "description":  "Manage branch protection rules",
+                                             "args":  "\u003crepo\u003e [--branch \u003cname\u003e] [--rules \u003cjson\u003e]",
+                                             "aliases":  [
+                                                             "gh-branch-protect"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "gh-clean-releases",
+                                             "script":  "gh-clean-releases.py",
+                                             "description":  "Clean GitHub releases and tags",
+                                             "args":  "[--repo \u003cname\u003e] [--keep-latest \u003cn\u003e]"
+                                         },
+                                         {
+                                             "command":  "gh-clone-org",
+                                             "script":  "gh-clone-org.sh",
+                                             "description":  "Clone all repositories from a GitHub organization",
+                                             "args":  "\u003corg-name\u003e [--topic \u003ctopic\u003e] [--archived]"
+                                         },
+                                         {
+                                             "command":  "gh-create-repo",
+                                             "script":  "gh-create-repo.sh",
+                                             "description":  "Create a new GitHub repository with full configuration",
+                                             "args":  "\u003cname\u003e [-d \"desc\"] [-t topics] [-u url] [--version]",
+                                             "aliases":  [
+                                                             "gh-create"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "gh-labels-sync",
+                                             "script":  "gh-labels-sync.py",
+                                             "description":  "Sync labels between GitHub repositories",
+                                             "args":  "\u003csource-repo\u003e \u003ctarget-repo\u003e"
+                                         },
+                                         {
+                                             "command":  "gh-packages-cleanup",
+                                             "script":  "gh-packages-cleanup.py",
+                                             "description":  "Clean old package versions from GitHub Packages",
+                                             "args":  "[-o \u003corg\u003e] [-t \u003ctype\u003e] [--execute]"
+                                         },
+                                         {
+                                             "command":  "gh-pr-cleanup",
+                                             "script":  "gh-pr-cleanup.py",
+                                             "description":  "Clean up stale pull requests and branches",
+                                             "args":  "[--repo \u003cname\u003e] [--older-than \u003cdays\u003e]"
+                                         },
+                                         {
+                                             "command":  "gh-secrets-audit",
+                                             "script":  "gh-secrets-audit.py",
+                                             "description":  "Audit GitHub repository secrets",
+                                             "args":  "[--org \u003cname\u003e] [--repos \u003clist\u003e]"
+                                         },
+                                         {
+                                             "command":  "gh-sync-forks",
+                                             "script":  "gh-sync-forks.py",
+                                             "description":  "Sync forked repositories with upstream",
+                                             "args":  "[--repo \u003cname\u003e] [--all]"
+                                         },
+                                         {
+                                             "command":  "gh-topic-manager",
+                                             "script":  "gh-topic-manager.py",
+                                             "description":  "Manage GitHub repository topics",
+                                             "args":  "\u003crepo\u003e [--add \u003ctopics\u003e] [--remove \u003ctopics\u003e]",
+                                             "aliases":  [
+                                                             "gh-topics"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "gh-trigger-workflow",
+                                             "script":  "gh-trigger-workflow.sh",
+                                             "description":  "Trigger GitHub Actions workflows manually",
+                                             "args":  "\u003crepo\u003e \u003cworkflow\u003e [--ref \u003cbranch\u003e]",
+                                             "aliases":  [
+                                                             "gh-workflow"
+                                                         ]
+                                         },
+                                         {
+                                             "command":  "gh-visibility",
+                                             "script":  "gh-visibility.py",
+                                             "description":  "Change GitHub repository visibility",
+                                             "args":  "\u003crepo\u003e [--public|--private|--internal]"
+                                         }
+                                     ]
+                       },
+                       {
+                           "id":  "general",
+                           "name":  "General",
+                           "tools":  [
+                                         {
+                                             "command":  "help",
+                                             "script":  null,
+                                             "description":  "Show this help"
+                                         },
+                                         {
+                                             "command":  "version",
+                                             "script":  null,
+                                             "description":  "Show version info",
+                                             "aliases":  [
+                                                             "--version",
+                                                             "-v"
+                                                         ]
+                                         }
+                                     ]
+                       }
+                   ]
+}
