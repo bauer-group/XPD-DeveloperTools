@@ -24,12 +24,14 @@ GH_CONFIG_DIR="$DATA_DIR/gh"
 
 # Required scopes for all DevTools scripts
 # - repo: Full control of private repositories (most operations)
+# - admin:org: Manage org settings, billing, runners (gh-actions-usage, gh-runners-selfhosted-status)
 # - read:org: Read org membership
 # - workflow: Update GitHub Actions workflows
 # - read:packages: Read packages (gh-packages-cleanup)
 # - delete:packages: Delete packages (gh-packages-cleanup)
-# - admin:repo_hook: Manage webhooks (gh-add-workflow)
-REQUIRED_SCOPES="repo,read:org,workflow,read:packages,delete:packages,admin:repo_hook"
+# - write:packages: Write packages
+# - admin:repo_hook: Manage webhooks (gh-add-workflow, gh-webhook-manager)
+REQUIRED_SCOPES="repo,admin:org,read:org,workflow,read:packages,delete:packages,write:packages,admin:repo_hook"
 
 usage() {
     echo ""
@@ -48,7 +50,7 @@ usage() {
     echo "  token           Display current token (for debugging)"
     echo ""
     echo -e "${BOLD}Required Scopes:${NC}"
-    echo "  repo, read:org, workflow, read:packages, delete:packages, admin:repo_hook"
+    echo "  repo, admin:org, read:org, workflow, read:packages, delete:packages, write:packages, admin:repo_hook"
     echo ""
     echo -e "${BOLD}Options:${NC}"
     echo "  -h, --help      Show this help"
@@ -118,10 +120,12 @@ do_login_token() {
     echo ""
     echo -e "${CYAN}Required scopes:${NC}"
     echo "  - repo           : Full control of private repositories"
+    echo "  - admin:org      : Manage org settings, billing, runners"
     echo "  - read:org       : Read org membership"
     echo "  - workflow       : Update GitHub Actions workflows"
     echo "  - read:packages  : Read packages"
     echo "  - delete:packages: Delete packages"
+    echo "  - write:packages : Write packages"
     echo "  - admin:repo_hook: Manage webhooks"
     echo ""
 
@@ -229,6 +233,21 @@ show_status() {
             echo -e "  ${GREEN}✓${NC} read:org"
         else
             echo -e "  ${RED}✗${NC} read:org"
+        fi
+
+        # Test admin:org (billing access)
+        # Note: This may fail if user is not org admin, even with scope
+        if gh api /orgs/bauer-group/settings/billing/actions &>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} admin:org (billing)"
+        else
+            echo -e "  ${YELLOW}?${NC} admin:org (billing - may need org admin role)"
+        fi
+
+        # Test runners access
+        if gh api /orgs/bauer-group/actions/runners &>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} admin:org (runners)"
+        else
+            echo -e "  ${YELLOW}?${NC} admin:org (runners - may need org admin role)"
         fi
     fi
 
