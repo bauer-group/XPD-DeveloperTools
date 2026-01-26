@@ -1,3 +1,9 @@
+## [0.10.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.9.0...v0.10.0) (2026-01-26)
+
+### 🚀 Features
+
+* Add gh-prefix-labels script and configuration for repository topic management based on name prefixes ([8f51333](https://github.com/bauer-group/CS-DeveloperTools/commit/8f513332e291c1297576873bff13fc507697aed3))
+
 ## [0.9.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.8.0...v0.9.0) (2026-01-20)
 
 ### 🚀 Features
