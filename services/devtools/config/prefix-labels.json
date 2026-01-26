@@ -1,0 +1,67 @@
+{
+  "$schema": "./prefix-labels.schema.json",
+  "description": "Prefix-to-topic mappings for repository classification",
+  "version": "0.1.0",
+  "prefixes": {
+    "CS-": {
+      "labels": ["container-solution"],
+      "description": "Container Solution projects"
+    },
+    "IP-": {
+      "labels": ["internal-project"],
+      "description": "Internal projects"
+    },
+    "M-": {
+      "labels": ["metadata", "collection"],
+      "description": "Metadata and collection repositories"
+    },
+    "LIB-": {
+      "labels": ["shared-library"],
+      "description": "Shared libraries"
+    },
+    "CUSTOMER-": {
+      "labels": ["customer-project"],
+      "description": "Customer-specific projects"
+    },
+    "SEC-": {
+      "labels": ["security", "compliance"],
+      "description": "Security and compliance repositories"
+    },
+    "SWP-": {
+      "labels": ["shopware5-plugin"],
+      "description": "Shopware 5 plugins"
+    },
+    "SWA-": {
+      "labels": ["shopware6-app"],
+      "description": "Shopware 6 apps"
+    },
+    "SHA-": {
+      "labels": ["shopify-app"],
+      "description": "Shopify apps"
+    },
+    "ICS-": {
+      "labels": ["internal-project", "container-solution"],
+      "description": "Internal Container Solution projects"
+    },
+    "ARCHIVED-": {
+      "labels": ["project-archive"],
+      "description": "Archived projects"
+    },
+    "XPD-": {
+      "labels": ["production-development"],
+      "description": "Production development projects"
+    },
+    "CI-": {
+      "labels": ["ci-infrastructure", "automation"],
+      "description": "CI/CD infrastructure and runners"
+    },
+    "DEMO-": {
+      "labels": ["demo-solution"],
+      "description": "Demo and showcase solutions"
+    },
+    "SAAS-": {
+      "labels": ["saas-solution"],
+      "description": "SaaS solutions"
+    }
+  }
+}

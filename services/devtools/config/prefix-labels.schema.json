@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Prefix Labels Configuration",
+  "description": "Configuration for mapping repository name prefixes to GitHub topics",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of this configuration file"
+    },
+    "version": {
+      "type": "string",
+      "description": "Configuration version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "prefixes": {
+      "type": "object",
+      "description": "Mapping of repository name prefixes to topics",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "labels": {
+            "type": "array",
+            "description": "List of GitHub topics to assign to repos with this prefix",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+$",
+              "minLength": 1,
+              "maxLength": 50
+            },
+            "minItems": 1
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of this prefix category"
+          }
+        },
+        "required": ["labels"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["prefixes"],
+  "additionalProperties": false
+}

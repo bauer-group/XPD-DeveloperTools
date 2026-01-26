@@ -252,6 +252,12 @@
           "args": "[--repo <name>] [--older-than <days>]"
         },
         {
+          "command": "gh-prefix-labels",
+          "script": "gh-prefix-labels.py",
+          "description": "Assign topics to repos based on name prefix (configurable via JSON)",
+          "args": "[-o <org>] [--execute] [--config <path>]"
+        },
+        {
           "command": "gh-repo-settings",
           "script": "gh-repo-settings.py",
           "description": "Manage repository settings across organization",
