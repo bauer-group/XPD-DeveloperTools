@@ -63,7 +63,7 @@
       "labels": ["saas-solution"],
       "description": "SaaS solutions"
     },
-    "IAS-": {
+    "IAC-": {
       "labels": ["infrastructure-as-code"],
       "description": "Infrastructure as Code projects"
     }
