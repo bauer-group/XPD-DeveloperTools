@@ -1,3 +1,9 @@
+## [0.12.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.11.1...v0.12.0) (2026-02-19)
+
+### 🚀 Features
+
+* Add new prefixes for extensions and connectors in prefix-labels.json ([00aa316](https://github.com/bauer-group/CS-DeveloperTools/commit/00aa3161f5a3456a34e239092b6130bd91d71f6e))
+
 ## [0.11.1](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.11.0...v0.11.1) (2026-02-08)
 
 ### 🐛 Bug Fixes
