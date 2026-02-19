@@ -66,6 +66,14 @@
     "IAC-": {
       "labels": ["infrastructure-as-code"],
       "description": "Infrastructure as Code projects"
+    },
+    "EXT-": {
+      "labels": ["extension", "plugin", "addon"],
+      "description": "Platform-agnostic extensions and plugins"
+    },
+    "CON-": {
+      "labels": ["connector", "integration"],
+      "description": "External system connectors and integrations"
     }
   }
 }
