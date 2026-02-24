@@ -1,0 +1,175 @@
+# DevTools Script Automation
+#
+# Runs DevTools maintenance scripts automatically and on-demand.
+# Scheduled: gh-prefix-labels + gh-dependabot-labels (weekly, Sunday 06:00 UTC)
+# Manual: Any gh-* script via workflow_dispatch
+#
+# Setup:
+#   1. Create a Classic PAT with scopes:
+#      repo, admin:org, read:org, workflow, read:packages, delete:packages, write:packages, admin:repo_hook
+#   2. Store as Org-Level secret: DEVTOOLS_PAT
+#      (Org Settings > Secrets and variables > Actions > New organization secret)
+
+name: 🔧 DevTools Automation
+
+on:
+  schedule:
+    - cron: '0 6 * * 0' # Sunday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      script:
+        description: 'Script to run'
+        type: choice
+        options:
+          - gh-prefix-labels
+          - gh-dependabot-labels
+          - gh-labels-sync
+          - gh-stale-branches
+          - gh-codeowners-sync
+          - gh-branch-protection
+          - gh-repo-settings
+          - gh-template-sync
+          - gh-actions-usage
+          - gh-environments-audit
+          - gh-license-audit
+          - gh-secrets-audit
+          - gh-runners-selfhosted-status
+          - gh-topic-manager
+      extra-args:
+        description: 'Additional arguments (e.g. --repo CS-MyProject, --verbose)'
+        required: false
+        default: ''
+      dry-run:
+        description: 'Dry run (show changes without applying)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Scheduled: runs weekly for recurring maintenance ──
+  scheduled:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - script: gh-prefix-labels
+            args: '--execute'
+          - script: gh-dependabot-labels
+            args: '--execute'
+    name: 'scheduled: ${{ matrix.script }}'
+    env:
+      GH_TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Resolve script path
+        id: resolve
+        run: |
+          SCRIPT_PY="services/devtools/scripts/${{ matrix.script }}.py"
+          SCRIPT_SH="services/devtools/scripts/${{ matrix.script }}.sh"
+          if [ -f "$SCRIPT_PY" ]; then
+            echo "path=$SCRIPT_PY" >> "$GITHUB_OUTPUT"
+            echo "runner=python" >> "$GITHUB_OUTPUT"
+          elif [ -f "$SCRIPT_SH" ]; then
+            echo "path=$SCRIPT_SH" >> "$GITHUB_OUTPUT"
+            echo "runner=bash" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Script not found: ${{ matrix.script }}"
+            exit 1
+          fi
+
+      - name: Run ${{ matrix.script }}
+        run: |
+          echo "::group::Script output"
+          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ matrix.args }}
+          echo "::endgroup::"
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## 🔧 ${{ matrix.script }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Trigger**: Schedule (weekly)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Args**: \`${{ matrix.args }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Manual: any script via workflow_dispatch ──
+  manual:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    name: 'manual: ${{ inputs.script }}'
+    env:
+      GH_TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
+      - name: Resolve script path
+        id: resolve
+        run: |
+          SCRIPT_PY="services/devtools/scripts/${{ inputs.script }}.py"
+          SCRIPT_SH="services/devtools/scripts/${{ inputs.script }}.sh"
+          if [ -f "$SCRIPT_PY" ]; then
+            echo "path=$SCRIPT_PY" >> "$GITHUB_OUTPUT"
+            echo "runner=python" >> "$GITHUB_OUTPUT"
+          elif [ -f "$SCRIPT_SH" ]; then
+            echo "path=$SCRIPT_SH" >> "$GITHUB_OUTPUT"
+            echo "runner=bash" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Script not found: ${{ inputs.script }}"
+            exit 1
+          fi
+
+      - name: Build arguments
+        id: args
+        run: |
+          SCRIPT="${{ inputs.script }}"
+          ARGS=""
+
+          # Scripts use different dry-run patterns:
+          #   --execute pattern (default=dry-run): add --execute when dry-run is off
+          #   --dry-run pattern (default=execute): add --dry-run when dry-run is on
+          #   no toggle (read-only/direct): ignore dry-run setting
+          EXECUTE_SCRIPTS="gh-prefix-labels gh-dependabot-labels gh-stale-branches gh-codeowners-sync gh-repo-settings gh-template-sync"
+          DRYRUN_SCRIPTS="gh-labels-sync"
+
+          if echo "$EXECUTE_SCRIPTS" | grep -qw "$SCRIPT"; then
+            if [ "${{ inputs.dry-run }}" = "false" ]; then
+              ARGS="--execute"
+            fi
+          elif echo "$DRYRUN_SCRIPTS" | grep -qw "$SCRIPT"; then
+            if [ "${{ inputs.dry-run }}" = "true" ]; then
+              ARGS="--dry-run"
+            fi
+          fi
+
+          if [ -n "${{ inputs.extra-args }}" ]; then
+            ARGS="$ARGS ${{ inputs.extra-args }}"
+          fi
+          echo "value=$ARGS" >> "$GITHUB_OUTPUT"
+
+      - name: Run ${{ inputs.script }}
+        run: |
+          echo "::group::Script output"
+          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ steps.args.outputs.value }}
+          echo "::endgroup::"
+
+      - name: Job summary
+        if: always()
+        run: |
+          echo "## 🔧 ${{ inputs.script }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Trigger**: Manual" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Dry run**: ${{ inputs.dry-run }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Args**: \`${{ steps.args.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Extra args**: \`${{ inputs.extra-args }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
