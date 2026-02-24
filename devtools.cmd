@@ -65,6 +65,7 @@ if /i "%CMD%"=="gh-labels-sync" goto script
 if /i "%CMD%"=="gh-license-audit" goto script
 if /i "%CMD%"=="gh-packages-cleanup" goto script
 if /i "%CMD%"=="gh-pr-cleanup" goto script
+if /i "%CMD%"=="gh-prefix-labels" goto script
 if /i "%CMD%"=="gh-repo-settings" goto script
 if /i "%CMD%"=="gh-runners-selfhosted-status" goto script
 if /i "%CMD%"=="gh-secrets-audit" goto script
@@ -212,6 +213,7 @@ if /i "%CMD%"=="gh-labels-sync" set "S=gh-labels-sync.py"
 if /i "%CMD%"=="gh-license-audit" set "S=gh-license-audit.py"
 if /i "%CMD%"=="gh-packages-cleanup" set "S=gh-packages-cleanup.py"
 if /i "%CMD%"=="gh-pr-cleanup" set "S=gh-pr-cleanup.py"
+if /i "%CMD%"=="gh-prefix-labels" set "S=gh-prefix-labels.py"
 if /i "%CMD%"=="gh-repo-settings" set "S=gh-repo-settings.py"
 if /i "%CMD%"=="gh-runners-selfhosted-status" set "S=gh-runners-selfhosted-status.py"
 if /i "%CMD%"=="gh-secrets-audit" set "S=gh-secrets-audit.py"
@@ -236,7 +238,7 @@ echo Swiss Army Knife for Git-based Development
 echo.
 echo Components:
 echo   - DevTools Runtime Container (Git, Python, Shell)
-echo   - 39 tools from tools.json
+echo   - 40 tools from tools.json
 goto :eof
 
 :: =============================================================================
@@ -317,6 +319,8 @@ echo   gh-packages-cleanup [-o ^<org^>] [-t ^<type^>] [--execute]
 echo       Clean old package versions from GitHub Packages
 echo   gh-pr-cleanup [--repo ^<name^>] [--older-than ^<days^>]
 echo       Clean up stale pull requests and branches
+echo   gh-prefix-labels [-o ^<org^>] [--execute] [--config ^<path^>]
+echo       Assign topics to repos based on name prefix (configurable via JSON)
 echo   gh-repo-settings [-o ^<org^>] [--topic ^<topic^>] [--execute]
 echo       Manage repository settings across organization
 echo   gh-runners-selfhosted-status [-o ^<org^>]
