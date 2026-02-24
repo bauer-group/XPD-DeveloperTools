@@ -4,11 +4,43 @@
 # Scheduled: gh-prefix-labels + gh-dependabot-labels (weekly, Sunday 06:00 UTC)
 # Manual: Any gh-* script via workflow_dispatch
 #
-# Setup:
-#   1. Create a Classic PAT with scopes:
-#      repo, admin:org, read:org, workflow, read:packages, delete:packages, write:packages, admin:repo_hook
-#   2. Store as Org-Level secret: DEVTOOLS_PAT
-#      (Org Settings > Secrets and variables > Actions > New organization secret)
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ Setup: DEVTOOLS_PAT                                                │
+# │                                                                    │
+# │ Create a Fine-grained PAT (recommended) or Classic PAT and store  │
+# │ it as Org-Level secret "DEVTOOLS_PAT":                             │
+# │   Org Settings > Secrets and variables > Actions > New secret      │
+# │                                                                    │
+# │ ── Fine-grained PAT (Settings > Developer Settings > PATs) ──     │
+# │                                                                    │
+# │ Resource owner:    bauer-group                                     │
+# │ Repository access: All repositories                                │
+# │                                                                    │
+# │ Repository permissions:                                            │
+# │   Administration:  Read and write  (repo settings, topics,        │
+# │                                     branch protection)             │
+# │   Contents:        Read and write  (CODEOWNERS, templates,        │
+# │                                     branches, workflow files)      │
+# │   Issues:          Read and write  (labels for dependabot/sync)   │
+# │   Pull requests:   Read and write  (PR cleanup)                   │
+# │   Actions:         Read            (usage, workflows, billing)    │
+# │   Environments:    Read            (environments audit)           │
+# │   Secrets:         Read            (secrets audit)                │
+# │   Webhooks:        Read and write  (webhook manager)              │
+# │   Workflows:       Read and write  (add workflow files)           │
+# │   Metadata:        Read            (always granted)               │
+# │                                                                    │
+# │ Organization permissions:                                          │
+# │   Members:              Read       (org membership)               │
+# │   Administration:       Read       (billing info)                 │
+# │   Self-hosted runners:  Read       (runner status)                │
+# │                                                                    │
+# │ ── Classic PAT (alternative) ──                                    │
+# │                                                                    │
+# │ Scopes: repo, admin:org, read:org, workflow,                      │
+# │         read:packages, delete:packages, write:packages,           │
+# │         admin:repo_hook                                            │
+# └─────────────────────────────────────────────────────────────────────┘
 
 name: 🔧 DevTools Automation
 
@@ -64,12 +96,28 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.DEVTOOLS_PAT }}
     steps:
+      - name: Check DEVTOOLS_PAT
+        id: auth
+        env:
+          TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::DEVTOOLS_PAT secret is not configured. Skipping script execution."
+            echo "::warning::See workflow file header for setup instructions (Fine-grained or Classic PAT)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.auth.outputs.skip != 'true'
 
       - name: Install Python dependencies
+        if: steps.auth.outputs.skip != 'true'
         run: pip install pyyaml
 
       - name: Resolve script path
+        if: steps.auth.outputs.skip != 'true'
         id: resolve
         run: |
           SCRIPT_PY="services/devtools/scripts/${{ matrix.script }}.py"
@@ -86,6 +134,7 @@ jobs:
           fi
 
       - name: Run ${{ matrix.script }}
+        if: steps.auth.outputs.skip != 'true'
         run: |
           echo "::group::Script output"
           ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ matrix.args }}
@@ -94,11 +143,18 @@ jobs:
       - name: Job summary
         if: always()
         run: |
-          echo "## 🔧 ${{ matrix.script }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Trigger**: Schedule (weekly)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Args**: \`${{ matrix.args }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.auth.outputs.skip }}" = "true" ]; then
+            echo "## ⚠️ ${{ matrix.script }} — Skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "DEVTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "See workflow file header for setup instructions." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## 🔧 ${{ matrix.script }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Trigger**: Schedule (weekly)" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Args**: \`${{ matrix.args }}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # ── Manual: any script via workflow_dispatch ──
   manual:
@@ -108,12 +164,28 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.DEVTOOLS_PAT }}
     steps:
+      - name: Check DEVTOOLS_PAT
+        id: auth
+        env:
+          TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::DEVTOOLS_PAT secret is not configured. Skipping script execution."
+            echo "::warning::See workflow file header for setup instructions (Fine-grained or Classic PAT)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.auth.outputs.skip != 'true'
 
       - name: Install Python dependencies
+        if: steps.auth.outputs.skip != 'true'
         run: pip install pyyaml
 
       - name: Resolve script path
+        if: steps.auth.outputs.skip != 'true'
         id: resolve
         run: |
           SCRIPT_PY="services/devtools/scripts/${{ inputs.script }}.py"
@@ -130,6 +202,7 @@ jobs:
           fi
 
       - name: Build arguments
+        if: steps.auth.outputs.skip != 'true'
         id: args
         run: |
           SCRIPT="${{ inputs.script }}"
@@ -158,6 +231,7 @@ jobs:
           echo "value=$ARGS" >> "$GITHUB_OUTPUT"
 
       - name: Run ${{ inputs.script }}
+        if: steps.auth.outputs.skip != 'true'
         run: |
           echo "::group::Script output"
           ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ steps.args.outputs.value }}
@@ -166,10 +240,17 @@ jobs:
       - name: Job summary
         if: always()
         run: |
-          echo "## 🔧 ${{ inputs.script }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Trigger**: Manual" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Dry run**: ${{ inputs.dry-run }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Args**: \`${{ steps.args.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Extra args**: \`${{ inputs.extra-args }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.auth.outputs.skip }}" = "true" ]; then
+            echo "## ⚠️ ${{ inputs.script }} — Skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "DEVTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "See workflow file header for setup instructions." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## 🔧 ${{ inputs.script }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Trigger**: Manual" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Dry run**: ${{ inputs.dry-run }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Args**: \`${{ steps.args.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Extra args**: \`${{ inputs.extra-args }}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
