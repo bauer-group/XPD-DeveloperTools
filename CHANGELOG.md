@@ -1,3 +1,12 @@
+## [0.13.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.12.0...v0.13.0) (2026-02-24)
+
+### 🚀 Features
+
+* Add gh-prefix-labels command for topic assignment based on name prefix ([b6b9387](https://github.com/bauer-group/CS-DeveloperTools/commit/b6b938741f36e730eddc29d348ef07e28eef4822))
+* Enhance DevTools automation workflow with DEVTOOLS_PAT validation and detailed setup instructions ([09be912](https://github.com/bauer-group/CS-DeveloperTools/commit/09be912be5ad17ff9b5ea41741248a8528715d88))
+* Implement DevTools Script Automation workflow for scheduled and manual execution ([b06c01b](https://github.com/bauer-group/CS-DeveloperTools/commit/b06c01bb28ab37acd5a4f3bb63eb277a5399819a))
+* Improve script output logging in DevTools automation workflow ([0c21247](https://github.com/bauer-group/CS-DeveloperTools/commit/0c2124749039c1be57332ca50217b5c20c2bdae5))
+
 ## [0.12.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.11.1...v0.12.0) (2026-02-19)
 
 ### 🚀 Features
