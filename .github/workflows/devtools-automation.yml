@@ -136,9 +136,7 @@ jobs:
       - name: Run ${{ matrix.script }}
         if: steps.auth.outputs.skip != 'true'
         run: |
-          echo "::group::Script output"
-          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ matrix.args }}
-          echo "::endgroup::"
+          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ matrix.args }} 2>&1 | tee /tmp/script-output.log
 
       - name: Job summary
         if: always()
@@ -154,6 +152,15 @@ jobs:
             echo "- **Trigger**: Schedule (weekly)" >> "$GITHUB_STEP_SUMMARY"
             echo "- **Args**: \`${{ matrix.args }}\`" >> "$GITHUB_STEP_SUMMARY"
             echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+            if [ -f /tmp/script-output.log ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "<details><summary>Script output</summary>" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              sed 's/\x1b\[[0-9;]*m//g' /tmp/script-output.log >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
 
   # ── Manual: any script via workflow_dispatch ──
@@ -233,9 +240,7 @@ jobs:
       - name: Run ${{ inputs.script }}
         if: steps.auth.outputs.skip != 'true'
         run: |
-          echo "::group::Script output"
-          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ steps.args.outputs.value }}
-          echo "::endgroup::"
+          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ steps.args.outputs.value }} 2>&1 | tee /tmp/script-output.log
 
       - name: Job summary
         if: always()
@@ -253,4 +258,13 @@ jobs:
             echo "- **Args**: \`${{ steps.args.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
             echo "- **Extra args**: \`${{ inputs.extra-args }}\`" >> "$GITHUB_STEP_SUMMARY"
             echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+            if [ -f /tmp/script-output.log ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "<details><summary>Script output</summary>" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              sed 's/\x1b\[[0-9;]*m//g' /tmp/script-output.log >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+            fi
           fi
