@@ -74,6 +74,10 @@
     "CON-": {
       "labels": ["connector", "integration"],
       "description": "External system connectors and integrations"
+    },
+    "COM-": {
+      "labels": ["documentation", "corporate"],
+      "description": "Company-wide documentation and tools"
     }
   }
 }
