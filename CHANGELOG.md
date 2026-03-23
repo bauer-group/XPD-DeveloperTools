@@ -1,3 +1,9 @@
+## [0.14.1](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.14.0...v0.14.1) (2026-03-23)
+
+### 🐛 Bug Fixes
+
+* **cmd-generation:** ensured CRLF line endings for batch files ([512769c](https://github.com/bauer-group/CS-DeveloperTools/commit/512769ca35acfc473fab0956c5ead0cf59682406))
+
 ## [0.14.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.13.0...v0.14.0) (2026-02-26)
 
 ### 🚀 Features
