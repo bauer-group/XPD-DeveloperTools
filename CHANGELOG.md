@@ -1,3 +1,9 @@
+## [0.14.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.13.0...v0.14.0) (2026-02-26)
+
+### 🚀 Features
+
+* Add COM- prefix for company-wide documentation and tools ([a18c664](https://github.com/bauer-group/CS-DeveloperTools/commit/a18c6640a2e1746516b43a310f51ade2ffdd56a9))
+
 ## [0.13.0](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.12.0...v0.13.0) (2026-02-24)
 
 ### 🚀 Features
