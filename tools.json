@@ -331,8 +331,8 @@
       "tools": [
         {
           "command": "claude-backup",
-          "script": "claude-backup.ps1",
-          "native": true,
+          "script": "claude-backup.py",
+          "runtime": "python",
           "description": "Backup and restore Claude Code configuration",
           "args": "[backup|restore|list] [--keep <n>]"
         }

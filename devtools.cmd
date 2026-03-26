@@ -235,8 +235,8 @@ goto :eof
 :native_script
 :: =============================================================================
 set "NS="
-if /i "%CMD%"=="claude-backup" set "NS=claude-backup.ps1"
-powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
+if /i "%CMD%"=="claude-backup" set "NS=claude-backup.py"
+python "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
 goto :eof
 
 :: =============================================================================

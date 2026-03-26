@@ -24,7 +24,7 @@ foreach ($category in $config.categories) {
             $tools += @{
                 command = $tool.command
                 script = $tool.script
-                native = [bool]$tool.native
+                runtime = if ($tool.runtime) { $tool.runtime } else { "docker" }
                 description = $tool.description
                 args = $tool.args
                 aliases = $tool.aliases
@@ -63,7 +63,7 @@ if /i "%CMD%"=="cleanup" goto cleanup
 
 # Add routing for each tool
 foreach ($tool in $tools) {
-    $target = if ($tool.native) { "native_script" } else { "script" }
+    $target = if ($tool.runtime -ne "docker") { "native_script" } else { "script" }
     if ($tool.command -notin @("stats", "cleanup")) {
         $cmdContent += "if /i `"%CMD%`"==`"$($tool.command)`" goto $target`n"
     }
@@ -172,7 +172,7 @@ set "S="
 
 # Add script mappings (Docker tools only)
 foreach ($tool in $tools) {
-    if ($tool.native) { continue }
+    if ($tool.runtime -ne "docker") { continue }
     if ($tool.command -notin @("stats", "cleanup")) {
         $cmdContent += "if /i `"%CMD%`"==`"$($tool.command)`" set `"S=$($tool.script)`"`n"
     }
@@ -198,7 +198,7 @@ set "NS="
 
 # Add native script mappings
 foreach ($tool in $tools) {
-    if (-not $tool.native) { continue }
+    if ($tool.runtime -eq "docker") { continue }
     $cmdContent += "if /i `"%CMD%`"==`"$($tool.command)`" set `"NS=$($tool.script)`"`n"
     if ($tool.aliases) {
         foreach ($alias in $tool.aliases) {
@@ -208,7 +208,7 @@ foreach ($tool in $tools) {
 }
 
 $cmdContent += @"
-powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
+python "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
 goto :eof
 
 :: =============================================================================
