@@ -24,6 +24,7 @@ foreach ($category in $config.categories) {
             $tools += @{
                 command = $tool.command
                 script = $tool.script
+                native = [bool]$tool.native
                 description = $tool.description
                 args = $tool.args
                 aliases = $tool.aliases
@@ -62,13 +63,14 @@ if /i "%CMD%"=="cleanup" goto cleanup
 
 # Add routing for each tool
 foreach ($tool in $tools) {
+    $target = if ($tool.native) { "native_script" } else { "script" }
     if ($tool.command -notin @("stats", "cleanup")) {
-        $cmdContent += "if /i `"%CMD%`"==`"$($tool.command)`" goto script`n"
+        $cmdContent += "if /i `"%CMD%`"==`"$($tool.command)`" goto $target`n"
     }
     # Add aliases
     if ($tool.aliases) {
         foreach ($alias in $tool.aliases) {
-            $cmdContent += "if /i `"%CMD%`"==`"$alias`" goto script`n"
+            $cmdContent += "if /i `"%CMD%`"==`"$alias`" goto $target`n"
         }
     }
 }
@@ -168,8 +170,9 @@ set "S="
 
 "@
 
-# Add script mappings
+# Add script mappings (Docker tools only)
 foreach ($tool in $tools) {
+    if ($tool.native) { continue }
     if ($tool.command -notin @("stats", "cleanup")) {
         $cmdContent += "if /i `"%CMD%`"==`"$($tool.command)`" set `"S=$($tool.script)`"`n"
     }
@@ -184,6 +187,28 @@ foreach ($tool in $tools) {
 $cmdContent += @"
 if not exist "%DATA_DIR%" mkdir "%DATA_DIR%"
 docker run --rm -v "%CD%:/workspace" -v "%DATA_DIR%:/data" -w /workspace %IMAGE_NAME% /bin/bash -lc "%S% %~2 %~3 %~4 %~5"
+goto :eof
+
+:: =============================================================================
+:native_script
+:: =============================================================================
+set "NS="
+
+"@
+
+# Add native script mappings
+foreach ($tool in $tools) {
+    if (-not $tool.native) { continue }
+    $cmdContent += "if /i `"%CMD%`"==`"$($tool.command)`" set `"NS=$($tool.script)`"`n"
+    if ($tool.aliases) {
+        foreach ($alias in $tool.aliases) {
+            $cmdContent += "if /i `"%CMD%`"==`"$alias`" set `"NS=$($tool.script)`"`n"
+        }
+    }
+}
+
+$cmdContent += @"
+powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
 goto :eof
 
 :: =============================================================================

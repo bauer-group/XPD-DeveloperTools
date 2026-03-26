@@ -78,6 +78,7 @@ if /i "%CMD%"=="gh-trigger-workflow" goto script
 if /i "%CMD%"=="gh-workflow" goto script
 if /i "%CMD%"=="gh-visibility" goto script
 if /i "%CMD%"=="gh-webhook-manager" goto script
+if /i "%CMD%"=="claude-backup" goto native_script
 if /i "%CMD%"=="version" goto version
 if /i "%CMD%"=="--version" goto version
 if /i "%CMD%"=="-v" goto version
@@ -231,6 +232,14 @@ docker run --rm -v "%CD%:/workspace" -v "%DATA_DIR%:/data" -w /workspace %IMAGE_
 goto :eof
 
 :: =============================================================================
+:native_script
+:: =============================================================================
+set "NS="
+if /i "%CMD%"=="claude-backup" set "NS=claude-backup.ps1"
+powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
+goto :eof
+
+:: =============================================================================
 :version
 :: =============================================================================
 echo DevTools v1.0.0
@@ -238,7 +247,7 @@ echo Swiss Army Knife for Git-based Development
 echo.
 echo Components:
 echo   - DevTools Runtime Container (Git, Python, Shell)
-echo   - 40 tools from tools.json
+echo   - 41 tools from tools.json
 goto :eof
 
 :: =============================================================================
@@ -341,6 +350,10 @@ echo   gh-visibility ^<repo^> [--public^|--private^|--internal]
 echo       Change GitHub repository visibility
 echo   gh-webhook-manager [-o ^<org^>] [--list^|--add^|--delete] [--execute]
 echo       Manage webhooks across organization repositories
+echo.
+echo   Local Tools:
+echo   claude-backup [backup^|restore^|list] [--keep ^<n^>]
+echo       Backup and restore Claude Code configuration
 echo.
 echo   General:
 echo   help                  Show this help

@@ -326,6 +326,19 @@
       ]
     },
     {
+      "id": "local",
+      "name": "Local Tools",
+      "tools": [
+        {
+          "command": "claude-backup",
+          "script": "claude-backup.ps1",
+          "native": true,
+          "description": "Backup and restore Claude Code configuration",
+          "args": "[backup|restore|list] [--keep <n>]"
+        }
+      ]
+    },
+    {
       "id": "general",
       "name": "General",
       "tools": [
