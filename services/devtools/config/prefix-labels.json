@@ -67,6 +67,14 @@
       "labels": ["infrastructure-as-code"],
       "description": "Infrastructure as Code projects"
     },
+    "EMB-": {
+      "labels": ["embedded", "firmware", "microcontroller"],
+      "description": "Embedded systems and firmware projects"
+    },
+    "DRV-": {
+      "labels": ["driver", "device-driver", "system-software"],
+      "description": "Device drivers for Linux and Windows (kernel and user-space)"
+    },
     "EXT-": {
       "labels": ["extension", "plugin", "addon"],
       "description": "Platform-agnostic extensions and plugins"
