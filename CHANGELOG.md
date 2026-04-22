@@ -1,3 +1,9 @@
+## [0.16.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.15.1...v0.16.0) (2026-04-22)
+
+### 🚀 Features
+
+* **config:** added EMB- and DRV- repo classification prefixes ([0b90198](https://github.com/bauer-group/XPD-DeveloperTools/commit/0b90198d3a5a136b92789d0fdbfc18a9d10308de))
+
 ## [0.15.1](https://github.com/bauer-group/CS-DeveloperTools/compare/v0.15.0...v0.15.1) (2026-03-26)
 
 ### ♻️ Refactoring
