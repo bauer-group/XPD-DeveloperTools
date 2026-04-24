@@ -76,6 +76,7 @@ Interactive container with Git, Python 3.13, and shell utilities for Git-based d
 | `gh-sync-forks` | Sync forked repos with upstream |
 | `gh-pr-cleanup` | Clean stale PRs and branches |
 | `gh-secrets-audit` | Audit secrets across repos |
+| `gh-secrets-sync` | Sync local `.env` to repo secrets (push + prune obsolete) |
 | `gh-labels-sync` | Sync labels between repos |
 | `gh-dependabot-labels` | Sync labels from dependabot.yml |
 | `gh-packages-cleanup` | Clean old package versions |
@@ -171,6 +172,12 @@ Interactive container with Git, Python 3.13, and shell utilities for Git-based d
 ./devtools.sh gh-secrets-audit -o myorg --compare        # Compare coverage
 ./devtools.sh gh-secrets-audit myorg/repo --all          # Include Dependabot/envs
 
+# Sync local .env to repo secrets (push + prune obsolete)
+./devtools.sh run gh-secrets-sync.py --dry-run           # Preview plan
+./devtools.sh run gh-secrets-sync.py                     # Apply (prompts before deletions)
+./devtools.sh run gh-secrets-sync.py --yes               # Apply without prompt (CI)
+./devtools.sh run gh-secrets-sync.py -R owner/repo       # Target a different repo
+
 # Sync labels between repos
 ./devtools.sh gh-labels-sync source/repo target/repo
 ./devtools.sh gh-labels-sync --preset standard myorg/repo
@@ -235,6 +242,7 @@ Interactive container with Git, Python 3.13, and shell utilities for Git-based d
 - `gh-sync-forks.py` - Sync forked repos with upstream
 - `gh-pr-cleanup.py` - Clean stale PRs and branches
 - `gh-secrets-audit.py` - Audit secrets across repos
+- `gh-secrets-sync.py` - Sync local `.env` to repo secrets (push + prune obsolete, allowlisted via `.env.example`)
 - `gh-labels-sync.py` - Sync labels between repos
 - `gh-dependabot-labels.py` - Sync labels from dependabot.yml
 - `gh-packages-cleanup.py` - Clean old package versions
