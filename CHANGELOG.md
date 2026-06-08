@@ -1,3 +1,9 @@
+## [0.18.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.17.0...v0.18.0) (2026-06-08)
+
+### 🚀 Features
+
+* **config:** added EP- repo classification prefix ([df11a1d](https://github.com/bauer-group/XPD-DeveloperTools/commit/df11a1d3c6a878a36c53f89cd8207584ce41172c))
+
 ## [0.17.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.16.0...v0.17.0) (2026-04-25)
 
 ### 🚀 Features
