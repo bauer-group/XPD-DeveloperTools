@@ -86,6 +86,10 @@
     "COM-": {
       "labels": ["documentation", "corporate"],
       "description": "Company-wide documentation and tools"
+    },
+    "EP-": {
+      "labels": ["external-project", "fork"],
+      "description": "External code forked for local development"
     }
   }
 }
