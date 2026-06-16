@@ -281,6 +281,53 @@ Interactive container with Git, Python 3.13, and shell utilities for Git-based d
 
 ---
 
+## Local Tools (run on the host)
+
+Some tools operate on the **host machine and its filesystem** rather than inside
+the container. They live in `scripts/`, run with the host's Python (`runtime: python`
+in `tools.json`), and need their dependencies installed on the host:
+
+```bash
+pip install -r scripts/requirements.txt
+```
+
+| Command | Description |
+|---------|-------------|
+| `repo-mirror` | Snapshot a folder tree of git repos to JSON and restore/update it 1:1 elsewhere |
+| `claude-backup` | Backup / restore Claude Code configuration |
+
+Run them via `devtools.cmd <command>` on Windows, or directly with Python on any
+platform (Windows / Linux / macOS):
+
+```bash
+python scripts/repo-mirror.py scan -o repos.json
+```
+
+### repo-mirror
+
+Captures every repository under a root (default `C:\Projects` on Windows, current
+directory elsewhere) — **including nested independent sub-repos and submodules** —
+into one JSON manifest, then recreates that tree 1:1 on another machine.
+
+```bash
+# Source machine: analyse the tree and write the manifest
+python scripts/repo-mirror.py scan -o repos.json
+
+# Target machine: recreate folders, clone what's missing, fast-forward the rest
+python scripts/repo-mirror.py restore -i repos.json
+python scripts/repo-mirror.py restore -i repos.json --dry-run   # preview, touch nothing
+
+# Configurable excludes (by folder name OR relative path)
+python scripts/repo-mirror.py scan -x 'Archive*' -x 'eCommerce/legacy'
+```
+
+Existing repos are only ever **fast-forwarded**; anything with local changes, a
+detached HEAD or no upstream is left untouched. Submodules are restored via
+`--recurse-submodules` and refreshed with `submodule update --init --recursive`.
+See [scripts/repo-mirror.md](scripts/repo-mirror.md) for the full reference.
+
+---
+
 ## Dozzle - Container Monitor
 
 Independent Docker container log viewer. See [services/dozzle/README.md](services/dozzle/README.md) for details.
@@ -347,10 +394,19 @@ DeveloperTools/
 │           ├── dozzle.sh
 │           └── dozzle.ps1
 │
+├── scripts/                 # Host-side tools & generators (run on host Python)
+│   ├── repo-mirror.py       # Mirror a folder tree of git repos across machines
+│   ├── claude-backup.py     # Backup/restore Claude Code config
+│   ├── requirements.txt     # Host tool dependencies (rich)
+│   ├── generate-tools-json.ps1
+│   └── generate-cmd.ps1
+│
 └── .github/                 # CI/CD workflows
 ```
 
 ## Adding New Tools
+
+### Container tools (run inside the DevTools container)
 
 1. Add scripts to `services/devtools/scripts/` with metadata header:
 
@@ -362,10 +418,20 @@ DeveloperTools/
    # @usage: my-tool [options]
    ```
 
-2. Add Python dependencies to `requirements.txt` if needed
-3. Rebuild the container: `devtools build`
-4. The tool is automatically discovered by `help-devtools`
-5. Optionally add CLI shortcut to `devtools.sh`, `devtools.ps1`, and `devtools.cmd`
+2. Add Python dependencies to `services/devtools/requirements.txt` if needed
+3. Regenerate the manifest: `.\scripts\generate-tools-json.ps1`
+4. Rebuild the container: `devtools build`
+5. The tool is automatically discovered by `help-devtools`
+
+### Host (native) tools (run on host Python)
+
+For tools that act on the host filesystem (like `repo-mirror`, `claude-backup`):
+
+1. Add the script to `scripts/` (e.g. `scripts/my-tool.py`)
+2. Register it in `tools.json` under the `local` category with `"runtime": "python"`
+3. Add any host dependencies to `scripts/requirements.txt`
+4. Regenerate the launcher: `.\scripts\generate-cmd.ps1` — this routes the
+   command to `python scripts\my-tool.py` (native, no container)
 
 ## Requirements
 

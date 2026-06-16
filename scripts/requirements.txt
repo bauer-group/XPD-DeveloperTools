@@ -1,0 +1,8 @@
+# Host-side (native) tool dependencies for scripts/*.py
+# These run on the host via `devtools <command>` (runtime: python),
+# not inside the DevTools container.
+#
+#   pip install -r scripts/requirements.txt
+#
+# repo-mirror.py -- nice console output
+rich>=13.7

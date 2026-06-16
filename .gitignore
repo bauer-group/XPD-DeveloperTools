@@ -13,3 +13,10 @@
 # Persistent data for DevTools (GitHub auth, etc.)
 /.data/*
 !/.data/.gitkeep
+
+# Python (host tools in scripts/)
+__pycache__/
+*.pyc
+
+# repo-mirror manifests (user snapshots, not part of the repo)
+repos.json

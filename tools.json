@@ -335,6 +335,13 @@
           "runtime": "python",
           "description": "Backup and restore Claude Code configuration",
           "args": "[backup|restore|list] [--keep <n>]"
+        },
+        {
+          "command": "repo-mirror",
+          "script": "repo-mirror.py",
+          "runtime": "python",
+          "description": "Snapshot a folder tree of git repos to JSON and restore/update it 1:1",
+          "args": "[scan|restore] [--root <path>] [--target <path>] [--dry-run]"
         }
       ]
     },
