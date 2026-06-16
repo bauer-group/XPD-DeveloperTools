@@ -1,3 +1,9 @@
+## [0.19.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.18.0...v0.19.0) (2026-06-16)
+
+### 🚀 Features
+
+* **repo-mirror:** added git repo tree mirror tool ([9bdbba2](https://github.com/bauer-group/XPD-DeveloperTools/commit/9bdbba2176a66864508bef93339ca9fc45a43719))
+
 ## [0.18.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.17.0...v0.18.0) (2026-06-08)
 
 ### 🚀 Features
