@@ -5,10 +5,10 @@
 # Manual: Any gh-* script via workflow_dispatch
 #
 # ┌─────────────────────────────────────────────────────────────────────┐
-# │ Setup: DEVTOOLS_PAT                                                │
+# │ Setup: DEVELOPERTOOLS_PAT                                          │
 # │                                                                    │
 # │ Create a Fine-grained PAT (recommended) or Classic PAT and store  │
-# │ it as Org-Level secret "DEVTOOLS_PAT":                             │
+# │ it as Org-Level secret "DEVELOPERTOOLS_PAT":                       │
 # │   Org Settings > Secrets and variables > Actions > New secret      │
 # │                                                                    │
 # │ ── Fine-grained PAT (Settings > Developer Settings > PATs) ──     │
@@ -94,15 +94,15 @@ jobs:
             args: '--execute'
     name: 'scheduled: ${{ matrix.script }}'
     env:
-      GH_TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+      GH_TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
     steps:
-      - name: Check DEVTOOLS_PAT
+      - name: Check DEVELOPERTOOLS_PAT
         id: auth
         env:
-          TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+          TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::warning::DEVTOOLS_PAT secret is not configured. Skipping script execution."
+            echo "::warning::DEVELOPERTOOLS_PAT secret is not configured. Skipping script execution."
             echo "::warning::See workflow file header for setup instructions (Fine-grained or Classic PAT)."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -144,7 +144,7 @@ jobs:
           if [ "${{ steps.auth.outputs.skip }}" = "true" ]; then
             echo "## ⚠️ ${{ matrix.script }} — Skipped" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "DEVTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "DEVELOPERTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
             echo "See workflow file header for setup instructions." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "## 🔧 ${{ matrix.script }}" >> "$GITHUB_STEP_SUMMARY"
@@ -169,15 +169,15 @@ jobs:
     runs-on: ubuntu-latest
     name: 'manual: ${{ inputs.script }}'
     env:
-      GH_TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+      GH_TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
     steps:
-      - name: Check DEVTOOLS_PAT
+      - name: Check DEVELOPERTOOLS_PAT
         id: auth
         env:
-          TOKEN: ${{ secrets.DEVTOOLS_PAT }}
+          TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::warning::DEVTOOLS_PAT secret is not configured. Skipping script execution."
+            echo "::warning::DEVELOPERTOOLS_PAT secret is not configured. Skipping script execution."
             echo "::warning::See workflow file header for setup instructions (Fine-grained or Classic PAT)."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -248,7 +248,7 @@ jobs:
           if [ "${{ steps.auth.outputs.skip }}" = "true" ]; then
             echo "## ⚠️ ${{ inputs.script }} — Skipped" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "DEVTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
+            echo "DEVELOPERTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
             echo "See workflow file header for setup instructions." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "## 🔧 ${{ inputs.script }}" >> "$GITHUB_STEP_SUMMARY"
