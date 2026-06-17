@@ -119,9 +119,11 @@ jobs:
       - name: Resolve script path
         if: steps.auth.outputs.skip != 'true'
         id: resolve
+        env:
+          SCRIPT: ${{ matrix.script }}
         run: |
-          SCRIPT_PY="services/devtools/scripts/${{ matrix.script }}.py"
-          SCRIPT_SH="services/devtools/scripts/${{ matrix.script }}.sh"
+          SCRIPT_PY="services/devtools/scripts/${SCRIPT}.py"
+          SCRIPT_SH="services/devtools/scripts/${SCRIPT}.sh"
           if [ -f "$SCRIPT_PY" ]; then
             echo "path=$SCRIPT_PY" >> "$GITHUB_OUTPUT"
             echo "runner=python" >> "$GITHUB_OUTPUT"
@@ -129,29 +131,38 @@ jobs:
             echo "path=$SCRIPT_SH" >> "$GITHUB_OUTPUT"
             echo "runner=bash" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Script not found: ${{ matrix.script }}"
+            echo "::error::Script not found: ${SCRIPT}"
             exit 1
           fi
 
       - name: Run ${{ matrix.script }}
         if: steps.auth.outputs.skip != 'true'
+        env:
+          RUNNER: ${{ steps.resolve.outputs.runner }}
+          SCRIPT_PATH: ${{ steps.resolve.outputs.path }}
+          SCRIPT_ARGS: ${{ matrix.args }}
         run: |
-          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ matrix.args }} 2>&1 | tee /tmp/script-output.log
+          "$RUNNER" "$SCRIPT_PATH" $SCRIPT_ARGS 2>&1 | tee /tmp/script-output.log
 
       - name: Job summary
         if: always()
+        env:
+          SCRIPT: ${{ matrix.script }}
+          SCRIPT_ARGS: ${{ matrix.args }}
+          SKIP: ${{ steps.auth.outputs.skip }}
+          JOB_STATUS: ${{ job.status }}
         run: |
-          if [ "${{ steps.auth.outputs.skip }}" = "true" ]; then
-            echo "## ⚠️ ${{ matrix.script }} — Skipped" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$SKIP" = "true" ]; then
+            echo "## ⚠️ ${SCRIPT} — Skipped" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "DEVELOPERTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
             echo "See workflow file header for setup instructions." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "## 🔧 ${{ matrix.script }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "## 🔧 ${SCRIPT}" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "- **Trigger**: Schedule (weekly)" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Args**: \`${{ matrix.args }}\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Args**: \`${SCRIPT_ARGS}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Status**: ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
             if [ -f /tmp/script-output.log ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "<details><summary>Script output</summary>" >> "$GITHUB_STEP_SUMMARY"
@@ -194,9 +205,11 @@ jobs:
       - name: Resolve script path
         if: steps.auth.outputs.skip != 'true'
         id: resolve
+        env:
+          SCRIPT: ${{ inputs.script }}
         run: |
-          SCRIPT_PY="services/devtools/scripts/${{ inputs.script }}.py"
-          SCRIPT_SH="services/devtools/scripts/${{ inputs.script }}.sh"
+          SCRIPT_PY="services/devtools/scripts/${SCRIPT}.py"
+          SCRIPT_SH="services/devtools/scripts/${SCRIPT}.sh"
           if [ -f "$SCRIPT_PY" ]; then
             echo "path=$SCRIPT_PY" >> "$GITHUB_OUTPUT"
             echo "runner=python" >> "$GITHUB_OUTPUT"
@@ -204,15 +217,18 @@ jobs:
             echo "path=$SCRIPT_SH" >> "$GITHUB_OUTPUT"
             echo "runner=bash" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::Script not found: ${{ inputs.script }}"
+            echo "::error::Script not found: ${SCRIPT}"
             exit 1
           fi
 
       - name: Build arguments
         if: steps.auth.outputs.skip != 'true'
         id: args
+        env:
+          SCRIPT: ${{ inputs.script }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          EXTRA_ARGS: ${{ inputs.extra-args }}
         run: |
-          SCRIPT="${{ inputs.script }}"
           ARGS=""
 
           # Scripts use different dry-run patterns:
@@ -223,41 +239,52 @@ jobs:
           DRYRUN_SCRIPTS="gh-labels-sync"
 
           if echo "$EXECUTE_SCRIPTS" | grep -qw "$SCRIPT"; then
-            if [ "${{ inputs.dry-run }}" = "false" ]; then
+            if [ "$DRY_RUN" = "false" ]; then
               ARGS="--execute"
             fi
           elif echo "$DRYRUN_SCRIPTS" | grep -qw "$SCRIPT"; then
-            if [ "${{ inputs.dry-run }}" = "true" ]; then
+            if [ "$DRY_RUN" = "true" ]; then
               ARGS="--dry-run"
             fi
           fi
 
-          if [ -n "${{ inputs.extra-args }}" ]; then
-            ARGS="$ARGS ${{ inputs.extra-args }}"
+          if [ -n "$EXTRA_ARGS" ]; then
+            ARGS="$ARGS $EXTRA_ARGS"
           fi
           echo "value=$ARGS" >> "$GITHUB_OUTPUT"
 
       - name: Run ${{ inputs.script }}
         if: steps.auth.outputs.skip != 'true'
+        env:
+          RUNNER: ${{ steps.resolve.outputs.runner }}
+          SCRIPT_PATH: ${{ steps.resolve.outputs.path }}
+          SCRIPT_ARGS: ${{ steps.args.outputs.value }}
         run: |
-          ${{ steps.resolve.outputs.runner }} ${{ steps.resolve.outputs.path }} ${{ steps.args.outputs.value }} 2>&1 | tee /tmp/script-output.log
+          "$RUNNER" "$SCRIPT_PATH" $SCRIPT_ARGS 2>&1 | tee /tmp/script-output.log
 
       - name: Job summary
         if: always()
+        env:
+          SCRIPT: ${{ inputs.script }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          EXTRA_ARGS: ${{ inputs.extra-args }}
+          SCRIPT_ARGS: ${{ steps.args.outputs.value }}
+          SKIP: ${{ steps.auth.outputs.skip }}
+          JOB_STATUS: ${{ job.status }}
         run: |
-          if [ "${{ steps.auth.outputs.skip }}" = "true" ]; then
-            echo "## ⚠️ ${{ inputs.script }} — Skipped" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$SKIP" = "true" ]; then
+            echo "## ⚠️ ${SCRIPT} — Skipped" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "DEVELOPERTOOLS_PAT secret is not configured." >> "$GITHUB_STEP_SUMMARY"
             echo "See workflow file header for setup instructions." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "## 🔧 ${{ inputs.script }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "## 🔧 ${SCRIPT}" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "- **Trigger**: Manual" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Dry run**: ${{ inputs.dry-run }}" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Args**: \`${{ steps.args.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Extra args**: \`${{ inputs.extra-args }}\`" >> "$GITHUB_STEP_SUMMARY"
-            echo "- **Status**: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Dry run**: ${DRY_RUN}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Args**: \`${SCRIPT_ARGS}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Extra args**: \`${EXTRA_ARGS}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "- **Status**: ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
             if [ -f /tmp/script-output.log ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "<details><summary>Script output</summary>" >> "$GITHUB_STEP_SUMMARY"
