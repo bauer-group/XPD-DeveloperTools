@@ -342,6 +342,17 @@ cp .env.example .env
 
 ---
 
+## Scheduled Automation
+
+This repository runs its own maintenance scripts against the `bauer-group`
+organization weekly (Sunday 06:00 UTC) and on demand via `workflow_dispatch`,
+through the [`devtools-automation`](.github/workflows/devtools-automation.yml)
+workflow.
+
+Operations and the token security model — PAT scopes, the `automation`
+environment, the `main`-only branch restriction, and shell-injection hardening —
+are documented in **[services/devtools/AUTOMATION.md](services/devtools/AUTOMATION.md)**.
+
 ## Project Structure
 
 ```
@@ -355,6 +366,8 @@ DeveloperTools/
 │   │   ├── Dockerfile
 │   │   ├── entrypoint.sh
 │   │   ├── requirements.txt
+│   │   ├── AUTOMATION.md    # Scheduled automation: ops & security model
+│   │   ├── config/          # prefix-labels.json (+ schema)
 │   │   └── scripts/
 │   │       ├── git-stats.sh
 │   │       ├── git-cleanup.sh
