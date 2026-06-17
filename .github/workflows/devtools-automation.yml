@@ -84,6 +84,7 @@ jobs:
   scheduled:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    environment: automation
     strategy:
       fail-fast: false
       matrix:
@@ -178,6 +179,7 @@ jobs:
   manual:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: automation
     name: 'manual: ${{ inputs.script }}'
     env:
       GH_TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
