@@ -1,3 +1,15 @@
+## [0.20.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.19.0...v0.20.0) (2026-07-19)
+
+### 🚀 Features
+
+* **local:** added ghcr-token for ghcr.io pull credentials ([b15c4fb](https://github.com/bauer-group/XPD-DeveloperTools/commit/b15c4fbb857ea22670e81e7b1124f16c53599998))
+
+### 🐛 Bug Fixes
+
+* **ci:** granted callers the permissions their reusable workflows request ([9104995](https://github.com/bauer-group/XPD-DeveloperTools/commit/9104995e6e4ff378cefb6b8429a9b0312ef20420))
+* **scripts:** forwarded all arguments to native host tools ([89b074a](https://github.com/bauer-group/XPD-DeveloperTools/commit/89b074afaafe710075bbcf37e5cc9d654a85821f))
+* **scripts:** preserved local category on tools.json regeneration ([69ccfce](https://github.com/bauer-group/XPD-DeveloperTools/commit/69ccfce2fa824545526b21d52103a483aa8faf05))
+
 ## [0.19.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.18.0...v0.19.0) (2026-06-16)
 
 ### 🚀 Features
