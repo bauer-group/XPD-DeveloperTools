@@ -18,6 +18,11 @@ permissions:
   contents: write
   issues: write
   pull-requests: write
+  # packages: read is required by modules-validate-compose since automation-templates
+  # 7.0.0 (it verifies image references against internal/private GHCR packages).
+  # A called workflow can never receive more than the caller grants, so omitting it
+  # fails the run at startup with no logs.
+  packages: read
 
 jobs:
   validate-compose:
