@@ -80,6 +80,7 @@ if /i "%CMD%"=="gh-workflow" goto script
 if /i "%CMD%"=="gh-visibility" goto script
 if /i "%CMD%"=="gh-webhook-manager" goto script
 if /i "%CMD%"=="claude-backup" goto native_script
+if /i "%CMD%"=="ghcr-token" goto native_script
 if /i "%CMD%"=="repo-mirror" goto native_script
 if /i "%CMD%"=="version" goto version
 if /i "%CMD%"=="--version" goto version
@@ -239,6 +240,7 @@ goto :eof
 :: =============================================================================
 set "NS="
 if /i "%CMD%"=="claude-backup" set "NS=claude-backup.py"
+if /i "%CMD%"=="ghcr-token" set "NS=ghcr-token.py"
 if /i "%CMD%"=="repo-mirror" set "NS=repo-mirror.py"
 :: Forward every remaining argument. %~2..%~6 capped native tools at five tokens
 :: and stripped quoting; %1 (not %~1) keeps quoted values intact.
@@ -261,7 +263,7 @@ echo Swiss Army Knife for Git-based Development
 echo.
 echo Components:
 echo   - DevTools Runtime Container (Git, Python, Shell)
-echo   - 43 tools from tools.json
+echo   - 44 tools from tools.json
 goto :eof
 
 :: =============================================================================
@@ -370,6 +372,8 @@ echo.
 echo   Local Tools:
 echo   claude-backup [backup^|restore^|list] [--keep ^<n^>]
 echo       Backup and restore Claude Code configuration
+echo   ghcr-token [setup^|doctor^|emit] [--orgs ^<a,b^>] [-u ^<user^>] [--...
+echo       Validate a classic ghcr.io pull PAT across all orgs and emit Docker login commands
 echo   repo-mirror [scan^|restore] [--root ^<path^>] [--target ^<path^>] [...
 echo       Snapshot a folder tree of git repos to JSON and restore/update it 1:1
 echo.

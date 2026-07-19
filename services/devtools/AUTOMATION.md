@@ -159,6 +159,44 @@ with *"… is not allowed to deploy to automation …"* and run **zero** steps.
 
 ---
 
+## GHCR pull credential vs. `DEVELOPERTOOLS_PAT`
+
+These are two different credentials and they are **not** interchangeable.
+
+`DEVELOPERTOOLS_PAT` is a **fine-grained** PAT. `ghcr.io` rejects fine-grained
+PATs outright — GitHub Packages only supports classic PATs — so it cannot be
+reused for pulling container images, no matter which permissions it is granted.
+The fine-grained permission set contains no package permission at all.
+
+The GHCR pull credential is therefore a **separate classic PAT**, provisioned by
+[`scripts/ghcr-token.py`](../../scripts/ghcr-token.py) (see
+[`scripts/ghcr-token.md`](../../scripts/ghcr-token.md)). It must **not** be stored
+as an Actions secret in this public repository: workflows that need to pull from
+`ghcr.io` use the built-in `GITHUB_TOKEN`, which the registry does accept, with
+repository access granted under the package's *Manage Actions access*.
+
+> The failure mode is silent. `docker login` prints `Login Succeeded` for a
+> fine-grained PAT and only `docker pull` later fails with `denied` — which is
+> why `ghcr-token` validates against the registry before logging in.
+
+### One deliberate convention deviation
+
+`ghcr-token.py` contains the **only non-`gh` HTTP calls in this repository**
+(stdlib `urllib`, against `api.github.com` and `ghcr.io`). This is intentional
+and should not be "cleaned up" back to `gh api` or `curl`:
+
+- `gh api` cannot reach `ghcr.io` — it targets api.github.com, and no flag changes that.
+- Handing the token *under test* to a `gh` child process risks `gh` silently
+  falling back to its own keyring, which would report **PASS** for a token the
+  user never pasted — the worst possible outcome for a validator.
+- `curl -u user:PAT` would place the token in the process table.
+
+Discovery (listing orgs and packages) does still shell out to `gh`, and must: a
+pull-only PAT has no `read:org` and could never enumerate the organizations it is
+being tested against.
+
+---
+
 ## Residual risks & roadmap
 
 - **Write access is the trust boundary.** Anyone with write can reach the token

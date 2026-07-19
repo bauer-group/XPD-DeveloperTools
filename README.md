@@ -293,6 +293,7 @@ pip install -r scripts/requirements.txt
 
 | Command | Description |
 |---------|-------------|
+| `ghcr-token` | Validate a classic `ghcr.io` pull PAT across all orgs and emit Docker login commands |
 | `repo-mirror` | Snapshot a folder tree of git repos to JSON and restore/update it 1:1 elsewhere |
 | `claude-backup` | Backup / restore Claude Code configuration |
 
@@ -302,6 +303,31 @@ platform (Windows / Linux / macOS):
 ```bash
 python scripts/repo-mirror.py scan -o repos.json
 ```
+
+### ghcr-token
+
+Provisions the credential Docker needs to pull **private and internal images
+from `ghcr.io`** across every organization you belong to.
+
+```bash
+devtools ghcr-token                     # guided: create, validate, emit login commands
+devtools ghcr-token --execute           # same, and log this host in as well
+devtools ghcr-token doctor              # validate $GHCR_PAT, change nothing
+devtools ghcr-token emit --target server
+```
+
+`ghcr.io` accepts **only classic PATs** — fine-grained PATs and GitHub App tokens
+are rejected. Because a classic PAT's scopes are account-wide, one token covers
+every org you are a member of. The tool cannot create it (GitHub has no API for
+that), so it opens the prefilled page and takes the paste-back.
+
+What it does that a bare `docker login` cannot: **it proves the credential against
+the registry, per organization, before logging in.** `docker login` prints
+`Login Succeeded` even for tokens `ghcr.io` will never accept — the failure only
+surfaces later as `docker pull … denied`.
+
+See [scripts/ghcr-token.md](scripts/ghcr-token.md) for the Kubernetes, Swarm and
+Podman recipes, the rotation runbook and the troubleshooting table.
 
 ### repo-mirror
 
@@ -408,6 +434,7 @@ DeveloperTools/
 │           └── dozzle.ps1
 │
 ├── scripts/                 # Host-side tools & generators (run on host Python)
+│   ├── ghcr-token.py        # ghcr.io pull credential: validate + emit login commands
 │   ├── repo-mirror.py       # Mirror a folder tree of git repos across machines
 │   ├── claude-backup.py     # Backup/restore Claude Code config
 │   ├── requirements.txt     # Host tool dependencies (rich)

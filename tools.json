@@ -343,6 +343,13 @@
           "args": "[backup|restore|list] [--keep <n>]"
         },
         {
+          "command": "ghcr-token",
+          "script": "ghcr-token.py",
+          "runtime": "python",
+          "description": "Validate a classic ghcr.io pull PAT across all orgs and emit Docker login commands",
+          "args": "[setup|doctor|emit] [--orgs <a,b>] [-u <user>] [--target <t>] [--execute]"
+        },
+        {
           "command": "repo-mirror",
           "script": "repo-mirror.py",
           "runtime": "python",
