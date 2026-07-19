@@ -25,7 +25,11 @@ BOLD = '\033[1m'
 
 
 def run_gh(args: List[str], capture: bool = True) -> Optional[str]:
-    """Run GitHub CLI command."""
+    """Run GitHub CLI command.
+
+    Raises CalledProcessError on failure so callers can react; stderr from gh
+    is surfaced instead of being swallowed.
+    """
     cmd = ["gh"] + args
     try:
         if capture:
@@ -35,8 +39,9 @@ def run_gh(args: List[str], capture: bool = True) -> Optional[str]:
             subprocess.run(cmd, check=True)
             return None
     except subprocess.CalledProcessError as e:
-        if capture:
-            return None
+        stderr = (e.stderr or "").strip()
+        if stderr:
+            print(f"{RED}[gh] {stderr}{NC}", file=sys.stderr)
         raise
 
 
@@ -57,13 +62,23 @@ def get_repos(org: Optional[str] = None, pattern: Optional[str] = None,
     if org:
         args.append(org)
 
-    args.extend(["--json", "name,nameWithOwner,topics", "--limit", str(limit)])
+    args.extend(["--json", "name,nameWithOwner,repositoryTopics",
+                 "--limit", str(limit)])
 
-    output = run_gh(args)
+    try:
+        output = run_gh(args)
+    except subprocess.CalledProcessError:
+        return []
     if not output:
         return []
 
     repos = json.loads(output)
+
+    # gh returns repositoryTopics as [{"name": ...}] or null - flatten it so
+    # callers can read repo["topics"] as a plain list of strings.
+    for repo in repos:
+        raw_topics = repo.pop("repositoryTopics", None) or []
+        repo["topics"] = [t["name"] for t in raw_topics]
 
     # Filter by pattern if specified
     if pattern:
@@ -75,12 +90,15 @@ def get_repos(org: Optional[str] = None, pattern: Optional[str] = None,
 
 def get_repo_topics(repo: str) -> List[str]:
     """Get topics for a specific repository."""
-    output = run_gh(["repo", "view", repo, "--json", "repositoryTopics"])
+    try:
+        output = run_gh(["repo", "view", repo, "--json", "repositoryTopics"])
+    except subprocess.CalledProcessError:
+        return []
     if not output:
         return []
 
     data = json.loads(output)
-    return [t["name"] for t in data.get("repositoryTopics", [])]
+    return [t["name"] for t in (data.get("repositoryTopics") or [])]
 
 
 def add_topics(repo: str, topics: List[str], dry_run: bool = False) -> bool:
