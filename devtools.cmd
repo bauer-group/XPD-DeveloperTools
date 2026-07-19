@@ -69,6 +69,7 @@ if /i "%CMD%"=="gh-prefix-labels" goto script
 if /i "%CMD%"=="gh-repo-settings" goto script
 if /i "%CMD%"=="gh-runners-selfhosted-status" goto script
 if /i "%CMD%"=="gh-secrets-audit" goto script
+if /i "%CMD%"=="gh-secrets-sync" goto script
 if /i "%CMD%"=="gh-stale-branches" goto script
 if /i "%CMD%"=="gh-sync-forks" goto script
 if /i "%CMD%"=="gh-template-sync" goto script
@@ -219,6 +220,7 @@ if /i "%CMD%"=="gh-prefix-labels" set "S=gh-prefix-labels.py"
 if /i "%CMD%"=="gh-repo-settings" set "S=gh-repo-settings.py"
 if /i "%CMD%"=="gh-runners-selfhosted-status" set "S=gh-runners-selfhosted-status.py"
 if /i "%CMD%"=="gh-secrets-audit" set "S=gh-secrets-audit.py"
+if /i "%CMD%"=="gh-secrets-sync" set "S=gh-secrets-sync.py"
 if /i "%CMD%"=="gh-stale-branches" set "S=gh-stale-branches.py"
 if /i "%CMD%"=="gh-sync-forks" set "S=gh-sync-forks.py"
 if /i "%CMD%"=="gh-template-sync" set "S=gh-template-sync.py"
@@ -238,7 +240,17 @@ goto :eof
 set "NS="
 if /i "%CMD%"=="claude-backup" set "NS=claude-backup.py"
 if /i "%CMD%"=="repo-mirror" set "NS=repo-mirror.py"
-python "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
+:: Forward every remaining argument. %~2..%~6 capped native tools at five tokens
+:: and stripped quoting; %1 (not %~1) keeps quoted values intact.
+set "NSARGS="
+shift
+:ns_args
+if "%~1"=="" goto ns_run
+set "NSARGS=%NSARGS% %1"
+shift
+goto ns_args
+:ns_run
+python "%SCRIPT_DIR%scripts\%NS%"%NSARGS%
 goto :eof
 
 :: =============================================================================
@@ -249,7 +261,7 @@ echo Swiss Army Knife for Git-based Development
 echo.
 echo Components:
 echo   - DevTools Runtime Container (Git, Python, Shell)
-echo   - 42 tools from tools.json
+echo   - 43 tools from tools.json
 goto :eof
 
 :: =============================================================================
@@ -338,6 +350,8 @@ echo   gh-runners-selfhosted-status [-o ^<org^>]
 echo       Show self-hosted runner status across organization
 echo   gh-secrets-audit [--org ^<name^>] [--repos ^<list^>]
 echo       Audit GitHub repository secrets
+echo   gh-secrets-sync [--env ^<path^>] [--example ^<path^>] [--repo ^<own...
+echo       Sync a local .env file to GitHub repository secrets (push + prune obsolete)
 echo   gh-stale-branches [-o ^<org^>] [--days ^<n^>] [--delete]
 echo       Find stale branches across organization repositories
 echo   gh-sync-forks [--repo ^<name^>] [--all]

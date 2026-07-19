@@ -208,7 +208,17 @@ foreach ($tool in $tools) {
 }
 
 $cmdContent += @"
-python "%SCRIPT_DIR%scripts\%NS%" %~2 %~3 %~4 %~5 %~6
+:: Forward every remaining argument. %~2..%~6 capped native tools at five tokens
+:: and stripped quoting; %1 (not %~1) keeps quoted values intact.
+set "NSARGS="
+shift
+:ns_args
+if "%~1"=="" goto ns_run
+set "NSARGS=%NSARGS% %1"
+shift
+goto ns_args
+:ns_run
+python "%SCRIPT_DIR%scripts\%NS%"%NSARGS%
 goto :eof
 
 :: =============================================================================
