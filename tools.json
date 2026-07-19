@@ -276,6 +276,12 @@
           "args": "[--org <name>] [--repos <list>]"
         },
         {
+          "command": "gh-secrets-sync",
+          "script": "gh-secrets-sync.py",
+          "description": "Sync a local .env file to GitHub repository secrets (push + prune obsolete)",
+          "args": "[--env <path>] [--example <path>] [--repo <owner/repo>] [--dry-run] [--yes]"
+        },
+        {
           "command": "gh-stale-branches",
           "script": "gh-stale-branches.py",
           "description": "Find stale branches across organization repositories",

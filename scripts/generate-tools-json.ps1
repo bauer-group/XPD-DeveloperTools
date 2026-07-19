@@ -174,6 +174,15 @@ foreach ($catId in $categoryOrder) {
     }
 }
 
+# Preserve hand-maintained categories (host-native tools in scripts/, not scanned here)
+$preserved = @("local")
+if (Test-Path $OutputPath) {
+    $existing = Get-Content $OutputPath -Raw | ConvertFrom-Json
+    foreach ($cat in $existing.categories) {
+        if ($preserved -contains $cat.id) { $categories += $cat }
+    }
+}
+
 # Add general category
 $categories += [ordered]@{
     id = "general"
@@ -192,8 +201,10 @@ $config = [ordered]@{
 }
 
 # Write JSON
+# UTF8Encoding($false) = no BOM. Out-File -Encoding UTF8 emits a BOM on Windows
+# PowerShell 5.1, which breaks strict JSON parsers and dirties the diff on every run.
 $json = $config | ConvertTo-Json -Depth 10
-$json | Out-File -FilePath $OutputPath -Encoding UTF8
+[System.IO.File]::WriteAllText($OutputPath, $json + "`n", [System.Text.UTF8Encoding]::new($false))
 
 # Count tools
 $toolCount = ($categories | ForEach-Object { $_.tools } | Measure-Object).Count
