@@ -2,7 +2,7 @@
 # @name: gh-topic-manager
 # @description: Manage GitHub repository topics
 # @category: github
-# @usage: gh-topic-manager.py <repo> [--add <topics>] [--remove <topics>]
+# @usage: gh-topic-manager.py <repo> [--add <topics>] [--remove <topics>] [--fork|--no-fork]
 """
 gh-topic-manager.py - GitHub Repository Topics Manager
 Verwaltet Topics für einzelne oder mehrere Repositories.
@@ -55,14 +55,17 @@ def check_gh_auth() -> bool:
 
 
 def get_repos(org: Optional[str] = None, pattern: Optional[str] = None,
-              limit: int = 100) -> List[Dict]:
-    """Get list of repositories."""
+              limit: int = 100, fork: Optional[bool] = None) -> List[Dict]:
+    """Get list of repositories.
+
+    fork: True = only forks, False = only non-forks, None = no fork filter.
+    """
     args = ["repo", "list"]
 
     if org:
         args.append(org)
 
-    args.extend(["--json", "name,nameWithOwner,repositoryTopics",
+    args.extend(["--json", "name,nameWithOwner,repositoryTopics,isFork",
                  "--limit", str(limit)])
 
     try:
@@ -79,6 +82,10 @@ def get_repos(org: Optional[str] = None, pattern: Optional[str] = None,
     for repo in repos:
         raw_topics = repo.pop("repositoryTopics", None) or []
         repo["topics"] = [t["name"] for t in raw_topics]
+
+    # Filter by fork status if specified
+    if fork is not None:
+        repos = [r for r in repos if r.get("isFork", False) is fork]
 
     # Filter by pattern if specified
     if pattern:
@@ -189,6 +196,12 @@ Examples:
   # Add topics to multiple repos by pattern
   gh-topic-manager.py -o myorg --pattern "api-*" --add microservice,rest
 
+  # Tag every fork in an org (leaves own repos untouched)
+  gh-topic-manager.py -o myorg --fork --sync forked-repo --limit 1000
+
+  # Combine both filters: forks whose name starts with "terraform-"
+  gh-topic-manager.py -o myorg --fork --pattern "terraform-*" --add forked-repo
+
   # Remove topics
   gh-topic-manager.py myorg/myrepo --remove deprecated,old
 
@@ -215,6 +228,17 @@ Examples:
     parser.add_argument(
         "--pattern",
         help="Filter repos by name pattern (e.g., 'api-*')"
+    )
+    fork_group = parser.add_mutually_exclusive_group()
+    fork_group.add_argument(
+        "--fork",
+        action="store_true",
+        help="Only forked repos (requires --org, combinable with --pattern)"
+    )
+    fork_group.add_argument(
+        "--no-fork",
+        action="store_true",
+        help="Only non-forked repos (requires --org, combinable with --pattern)"
     )
     parser.add_argument(
         "--add",
@@ -272,17 +296,36 @@ Examples:
     print(f"{BOLD}{CYAN}╚═══════════════════════════════════════════════════════════════╝{NC}")
     print()
 
+    # Fork filter: True = only forks, False = only non-forks, None = no filter
+    fork_filter = True if args.fork else (False if args.no_fork else None)
+
     # Determine target repos
     repos = []
     if args.repo:
+        if fork_filter is not None:
+            print(f"{RED}[ERROR] --fork/--no-fork only apply to --org mode{NC}")
+            sys.exit(1)
         # Single repo
         topics = get_repo_topics(args.repo)
         repos = [{"nameWithOwner": args.repo, "name": args.repo.split("/")[-1], "topics": topics}]
     elif args.org:
         # Organization repos
         print(f"Fetching repositories from {args.org}...")
-        repos = get_repos(org=args.org, pattern=args.pattern, limit=args.limit)
-        print(f"Found {len(repos)} repositories")
+        repos = get_repos(org=args.org, pattern=args.pattern, limit=args.limit,
+                          fork=fork_filter)
+
+        active_filters = []
+        if fork_filter is True:
+            active_filters.append("forks only")
+        elif fork_filter is False:
+            active_filters.append("non-forks only")
+        if args.pattern:
+            active_filters.append(f"name matches '{args.pattern}'")
+
+        if active_filters:
+            print(f"Found {len(repos)} repositories ({', '.join(active_filters)})")
+        else:
+            print(f"Found {len(repos)} repositories")
         print()
     else:
         print(f"{RED}[ERROR] Specify either a repo or --org{NC}")

@@ -124,6 +124,10 @@ Interactive container with Git, Python 3.13, and shell utilities for Git-based d
 ./devtools.sh gh-topics -o myorg --add python,api    # Add to all repos
 ./devtools.sh gh-topics myorg/repo --sync cli,tool   # Ensure topics exist
 
+# Filter by fork status (combinable with --pattern)
+./devtools.sh gh-topics -o myorg --fork --sync forked-repo --limit 1000
+./devtools.sh gh-topics -o myorg --no-fork --list    # Only own repos
+
 # Archive inactive repositories
 ./devtools.sh gh-archive -o myorg --inactive 365 --dry-run
 ./devtools.sh gh-archive -o myorg --empty            # Archive empty repos

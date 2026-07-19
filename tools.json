@@ -303,7 +303,7 @@
           "command": "gh-topic-manager",
           "script": "gh-topic-manager.py",
           "description": "Manage GitHub repository topics",
-          "args": "<repo> [--add <topics>] [--remove <topics>]",
+          "args": "<repo> [--add <topics>] [--remove <topics>] [--fork|--no-fork]",
           "aliases": [
             "gh-topics"
           ]
