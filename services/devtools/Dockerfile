@@ -132,6 +132,14 @@ ENV GH_CONFIG_DIR="/data/gh"
 # Scripts Directory
 # =============================================================================
 COPY scripts/ /opt/devtools/scripts/
+
+# Strip CR from the build context. .gitattributes pins *.sh and *.py to LF, but
+# clones created before that rule still carry CRLF in the working tree, and a
+# CRLF shebang makes the kernel look for an interpreter named "python3\r".
+# Normalising here keeps the image correct regardless of host checkout state.
+RUN find /opt/devtools/scripts -type f \( -name '*.sh' -o -name '*.py' \) \
+        -exec sed -i 's/\r$//' {} +
+
 RUN chmod +x /opt/devtools/scripts/*.sh /opt/devtools/scripts/*.py 2>/dev/null || true
 
 # Create symlinks without extensions in separate bin directory
