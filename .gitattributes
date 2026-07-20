@@ -7,6 +7,12 @@
 # This is handled automatically by install.sh and update.sh
 *.sh text eol=lf
 
+# Python scripts: LF line endings
+# These run inside the Linux devtools container via their shebang. With CRLF
+# the kernel reads the interpreter as "python3\r", which fails with
+# "env: 'python3\r': No such file or directory" on Windows checkouts.
+*.py text eol=lf
+
 # YAML files should use LF
 *.yml text eol=lf
 *.yaml text eol=lf
