@@ -1,24 +1,40 @@
 # =============================================================================
 # Fork Auto-Sync
 # =============================================================================
-# Keeps every tagged fork in an organization current with its upstream.
+# Keeps a whole organization of forks tagged and current with their upstreams.
 #
-# Runs gh-fork-autosync centrally, so the forks themselves need no workflow
-# installed. Per repository it calls the merge-upstream API for the mirror
-# branch and, when the fork's default branch differs, merges the mirror
-# forward server-side.
+# Two steps, in this order:
+#   1. Tag   - every fork in the org gets the selector topic (default
+#              `forked-repo`). Without this a newly created fork would never be
+#              picked up by step 2.
+#   2. Sync  - gh-fork-autosync updates each tagged fork: the mirror branch via
+#              the merge-upstream API, and - when the fork's default branch
+#              differs - a server-side merge forward. The forks themselves need
+#              no workflow installed.
 #
-# Token: DEVELOPERTOOLS_PAT (same secret as devtools-automation.yml).
-# Needs `repo` scope across the target organization. A PAT is required rather
-# than GITHUB_TOKEN both because the target repos live in another org and so
-# that the resulting commits trigger the forks' own build workflows.
+# ┌─ Token ─────────────────────────────────────────────────────────────┐
+# │ Secret: DEVELOPERTOOLSFORKSYNC_PAT                                  │
+# │ Stored in the `automation` GitHub Environment.                      │
+# │                                                                     │
+# │ A fine-grained PAT is scoped to ONE resource owner, so this needs   │
+# │ its own token issued for the target org - DEVELOPERTOOLS_PAT covers │
+# │ bauer-group and cannot reach mirrored-projects.                     │
+# │                                                                     │
+# │ Fine-grained permissions (on the target org, all repositories):     │
+# │   Administration:  Read and write   PUT /repos/{o}/{r}/topics       │
+# │   Contents:        Read and write   merge-upstream + merges         │
+# │   Issues:          Read and write   conflict issues + labels        │
+# │   Metadata:        Read             always granted; repo listing    │
+# │                                                                     │
+# │ Classic PAT equivalent: `repo` (plus `read:org` for org listing).   │
+# └─────────────────────────────────────────────────────────────────────┘
 # =============================================================================
 
 name: 🔄 Fork Auto-Sync
 
 on:
   schedule:
-    - cron: '0 4 * * *' # Daily 04:00 UTC
+    - cron: '0 5 * * 0' # Weekly, Sunday 05:00 UTC (before devtools-automation)
   workflow_dispatch:
     inputs:
       org:
@@ -26,9 +42,13 @@ on:
         required: false
         default: 'mirrored-projects'
       topic:
-        description: 'Only repos carrying this topic (empty = all forks)'
+        description: 'Selector topic for the forks'
         required: false
         default: 'forked-repo'
+      skip-tagging:
+        description: 'Skip step 1 and only sync already tagged forks'
+        type: boolean
+        default: false
       dry-run:
         description: 'Preview only, change nothing'
         type: boolean
@@ -39,20 +59,21 @@ permissions:
 
 jobs:
   sync:
-    name: 'Sync forks (${{ inputs.org || ''mirrored-projects'' }})'
+    name: 'Tag + sync forks (${{ inputs.org || ''mirrored-projects'' }})'
     runs-on: ubuntu-latest
     environment: automation
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
-      GH_TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
+      GH_TOKEN: ${{ secrets.DEVELOPERTOOLSFORKSYNC_PAT }}
     steps:
-      - name: Check DEVELOPERTOOLS_PAT
+      - name: Check DEVELOPERTOOLSFORKSYNC_PAT
         id: auth
         env:
-          TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
+          TOKEN: ${{ secrets.DEVELOPERTOOLSFORKSYNC_PAT }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::warning::DEVELOPERTOOLS_PAT secret is not configured. Skipping fork sync."
+            echo "::warning::DEVELOPERTOOLSFORKSYNC_PAT is not configured. Skipping."
+            echo "::warning::See the workflow file header for the required permissions."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -61,38 +82,66 @@ jobs:
       - uses: actions/checkout@v4
         if: steps.auth.outputs.skip != 'true'
 
-      - name: Build arguments
+      - name: Resolve parameters
         if: steps.auth.outputs.skip != 'true'
-        id: args
+        id: params
         env:
-          # Scheduled runs carry no inputs, so fall back to the defaults here.
-          ORG: ${{ inputs.org || 'mirrored-projects' }}
-          TOPIC: ${{ github.event_name == 'schedule' && 'forked-repo' || inputs.topic }}
+          # A scheduled run carries no inputs, so the defaults are repeated here.
           IS_SCHEDULE: ${{ github.event_name == 'schedule' }}
-          DRY_RUN: ${{ inputs.dry-run }}
+          IN_ORG: ${{ inputs.org }}
+          IN_TOPIC: ${{ inputs.topic }}
+          IN_DRY_RUN: ${{ inputs.dry-run }}
+          IN_SKIP_TAGGING: ${{ inputs.skip-tagging }}
         run: |
-          ARGS="-o $ORG"
-          [ -n "$TOPIC" ] && ARGS="$ARGS --topic $TOPIC"
-
-          # A scheduled run is the point of this workflow - it always applies.
-          # Manual runs default to a preview so a dispatch cannot surprise anyone.
-          if [ "$IS_SCHEDULE" != "true" ] && [ "$DRY_RUN" = "true" ]; then
-            ARGS="$ARGS --dry-run"
+          if [ "$IS_SCHEDULE" = "true" ]; then
+            ORG="mirrored-projects"
+            TOPIC="forked-repo"
+            DRY=""                # the schedule exists to apply changes
+            SKIP_TAGGING="false"
+          else
+            ORG="${IN_ORG:-mirrored-projects}"
+            TOPIC="${IN_TOPIC:-forked-repo}"
+            # Manual runs preview by default so a dispatch cannot surprise anyone.
+            [ "$IN_DRY_RUN" = "true" ] && DRY="--dry-run" || DRY=""
+            SKIP_TAGGING="$IN_SKIP_TAGGING"
           fi
 
-          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
-          echo "Arguments: $ARGS"
+          {
+            echo "org=$ORG"
+            echo "topic=$TOPIC"
+            echo "dry=$DRY"
+            echo "skip-tagging=$SKIP_TAGGING"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Run gh-fork-autosync
+          echo "org=$ORG topic=$TOPIC dry='$DRY' skip-tagging=$SKIP_TAGGING"
+
+      # --- Step 1: make sure every fork carries the selector topic ------------
+      - name: Tag forks
+        if: steps.auth.outputs.skip != 'true' && steps.params.outputs.skip-tagging != 'true'
+        env:
+          ORG: ${{ steps.params.outputs.org }}
+          TOPIC: ${{ steps.params.outputs.topic }}
+          DRY: ${{ steps.params.outputs.dry }}
+        run: |
+          set -o pipefail
+          python services/devtools/scripts/gh-topic-manager.py \
+            -o "$ORG" --fork --sync "$TOPIC" --limit 1000 $DRY 2>&1 \
+            | tee /tmp/tag-output.log
+
+      # --- Step 2: sync every tagged fork from its upstream -------------------
+      - name: Sync forks
         if: steps.auth.outputs.skip != 'true'
         env:
-          SCRIPT_ARGS: ${{ steps.args.outputs.args }}
+          ORG: ${{ steps.params.outputs.org }}
+          TOPIC: ${{ steps.params.outputs.topic }}
+          DRY: ${{ steps.params.outputs.dry }}
         run: |
-          # pipefail so `tee` cannot mask a non-zero exit. The script exits
-          # non-zero on conflicts and errors, which fails the job on purpose -
-          # the summary and the per-repo issues carry the detail.
+          # pipefail so tee cannot mask a non-zero exit. The script exits
+          # non-zero on conflicts and errors, failing the job on purpose - the
+          # summary and the per-repo issues carry the detail.
           set -o pipefail
-          python services/devtools/scripts/gh-fork-autosync.py $SCRIPT_ARGS 2>&1 \
+          python services/devtools/scripts/gh-fork-autosync.py \
+            -o "$ORG" --topic "$TOPIC" $DRY 2>&1 \
             | tee /tmp/sync-output.log
 
       - name: Job summary
@@ -100,13 +149,15 @@ jobs:
         env:
           SKIP: ${{ steps.auth.outputs.skip }}
           JOB_STATUS: ${{ job.status }}
-          SCRIPT_ARGS: ${{ steps.args.outputs.args }}
+          ORG: ${{ steps.params.outputs.org }}
+          TOPIC: ${{ steps.params.outputs.topic }}
+          DRY: ${{ steps.params.outputs.dry }}
         run: |
           if [ "$SKIP" = "true" ]; then
             {
               echo "## ⚠️ Fork Auto-Sync — Skipped"
               echo ""
-              echo "DEVELOPERTOOLS_PAT secret is not configured."
+              echo "\`DEVELOPERTOOLSFORKSYNC_PAT\` is not configured."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -114,15 +165,25 @@ jobs:
           {
             echo "## 🔄 Fork Auto-Sync"
             echo ""
-            echo "- **Args**: \`${SCRIPT_ARGS}\`"
-            echo "- **Status**: ${JOB_STATUS}"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Org** | \`${ORG}\` |"
+            echo "| **Topic** | \`${TOPIC}\` |"
+            echo "| **Mode** | ${DRY:-apply} |"
+            echo "| **Status** | ${JOB_STATUS} |"
             echo ""
-            if [ -f /tmp/sync-output.log ]; then
+            for stage in tag sync; do
+              log="/tmp/${stage}-output.log"
+              [ -f "$log" ] || continue
+              echo "<details><summary>${stage} output</summary>"
+              echo ""
               echo '```'
-              sed 's/\x1b\[[0-9;]*m//g' /tmp/sync-output.log
+              sed 's/\x1b\[[0-9;]*m//g' "$log"
               echo '```'
-            fi
-            echo ""
+              echo ""
+              echo "</details>"
+              echo ""
+            done
             echo "> A red job means at least one fork hit a merge conflict or an"
             echo "> error. Conflicts open an issue in the affected repository."
           } >> "$GITHUB_STEP_SUMMARY"

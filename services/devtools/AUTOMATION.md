@@ -4,7 +4,13 @@ How the organization-wide maintenance scripts run on a schedule, how they
 authenticate, and the security model that keeps the access token safe in a
 **public** repository.
 
-Workflow: [`.github/workflows/devtools-automation.yml`](../../.github/workflows/devtools-automation.yml)
+Workflows:
+
+- [`.github/workflows/devtools-automation.yml`](../../.github/workflows/devtools-automation.yml) — maintenance scripts against `bauer-group`
+- [`.github/workflows/fork-autosync.yml`](../../.github/workflows/fork-autosync.yml) — fork tagging + upstream sync against `mirrored-projects`
+
+Each targets a different organization and therefore carries its own token — a
+fine-grained PAT is scoped to exactly one resource owner.
 
 ---
 
@@ -22,6 +28,34 @@ Workflow: [`.github/workflows/devtools-automation.yml`](../../.github/workflows/
 
 Both run against the `bauer-group` organization.
 
+### Fork Auto-Sync
+
+| Trigger | What | When |
+|---------|------|------|
+| `schedule` | Tag every fork with `forked-repo`, then sync each tagged fork from its upstream | Weekly, Sunday 05:00 UTC (`0 5 * * 0`) |
+| `workflow_dispatch` | Same, with `org` / `topic` / `skip-tagging` inputs and a `dry-run` toggle (default on) | On demand |
+
+Tagging runs first on purpose: the topic is the selector for the sync, so a
+newly created fork would otherwise stay invisible to the automation.
+
+The sync itself is two stages per repository, both pure API calls — the forks
+need no workflow installed:
+
+1. `POST /repos/{o}/{r}/merge-upstream` updates the **mirror branch**, i.e. the
+   branch named like the upstream's default branch.
+2. `POST /repos/{o}/{r}/merges` merges the mirror forward into the fork's own
+   default branch — only when the two differ. `merge-upstream` takes no
+   upstream-branch argument and always syncs from the identically named branch
+   in the parent, so a fork whose default is `workspace/main` cannot be synced
+   directly.
+
+Merge conflicts open (or comment on) an issue in the affected repository, using
+the same issue titles as `sync-upstream.yml` so both paths converge on one
+issue. Conflicts and errors make the job fail, so a run cannot go green while a
+fork is stuck.
+
+Runs against the `mirrored-projects` organization.
+
 ---
 
 ## Authentication
@@ -29,10 +63,18 @@ Both run against the `bauer-group` organization.
 The scripts call the GitHub CLI / REST API with a Personal Access Token exposed
 to the jobs as `GH_TOKEN`.
 
-- **Secret name:** `DEVELOPERTOOLS_PAT`
-- **Stored in:** the `automation` **GitHub Environment** (not as a plain
-  repo/org secret) — both jobs declare `environment: automation`, so the token
-  only resolves inside that environment's context.
+| Workflow | Secret | Target org |
+|----------|--------|------------|
+| `devtools-automation.yml` | `DEVELOPERTOOLS_PAT` | `bauer-group` |
+| `fork-autosync.yml` | `DEVELOPERTOOLSFORKSYNC_PAT` | `mirrored-projects` |
+
+Both are stored in the `automation` **GitHub Environment** (not as plain
+repo/org secrets) — every job declares `environment: automation`, so a token
+only resolves inside that environment's context.
+
+> Two tokens, not one, because a **fine-grained PAT is scoped to exactly one
+> resource owner**. `DEVELOPERTOOLS_PAT` is issued for `bauer-group` and cannot
+> reach `mirrored-projects` no matter which permissions it carries.
 
 ### Minimum PAT permissions
 
@@ -49,6 +91,20 @@ For the two **scheduled** scripts, a fine-grained PAT needs only:
 > Pull requests.
 
 Classic PAT equivalent: `repo` is sufficient for the scheduled scripts.
+
+#### `DEVELOPERTOOLSFORKSYNC_PAT` (fork-autosync)
+
+Issue this one **for the `mirrored-projects` org**, with access to all
+repositories:
+
+| Permission | Why |
+|------------|-----|
+| **Administration:** Read and write | `PUT /repos/{org}/{repo}/topics` — tagging step |
+| **Contents:** Read and write | `POST .../merge-upstream` and `POST .../merges` — both sync stages |
+| **Issues:** Read and write | conflict issues and their labels |
+| **Metadata:** Read | always granted; lists and reads org repos |
+
+Classic PAT equivalent: `repo`, plus `read:org` for the org-wide repo listing.
 
 Running the broader **manual** scripts (`gh-branch-protection`,
 `gh-codeowners-sync`, `gh-webhook-manager`, `gh-secrets-audit`, …) requires the
