@@ -307,12 +307,15 @@ def process_repo(repo: str, dry_run: bool, create_issues: bool) -> Dict:
     result["detail"] = detail
 
     if status == "conflict":
-        if create_issues:
-            ensure_conflict_issue(
-                repo,
-                ISSUE_TITLE_MIRROR.format(branch=mirror),
-                mirror_conflict_body(repo, parent, mirror),
-            )
+        if create_issues and not ensure_conflict_issue(
+            repo,
+            ISSUE_TITLE_MIRROR.format(branch=mirror),
+            mirror_conflict_body(repo, parent, mirror),
+        ):
+            # Forks have issues disabled by default, so this is the norm rather
+            # than the exception. Saying so beats promising an issue that was
+            # never created.
+            result["detail"] += " (no issue created - issues disabled or denied)"
         return result
 
     if status == "error":
@@ -326,12 +329,12 @@ def process_repo(repo: str, dry_run: bool, create_issues: bool) -> Dict:
     result["stage_b"] = status_b
     result["detail"] = f"{detail}; {detail_b}"
 
-    if status_b == "conflict" and create_issues:
-        ensure_conflict_issue(
-            repo,
-            ISSUE_TITLE_INTEGRATE.format(source=mirror, target=fork_default),
-            integrate_conflict_body(repo, mirror, fork_default),
-        )
+    if status_b == "conflict" and create_issues and not ensure_conflict_issue(
+        repo,
+        ISSUE_TITLE_INTEGRATE.format(source=mirror, target=fork_default),
+        integrate_conflict_body(repo, mirror, fork_default),
+    ):
+        result["detail"] += " (no issue created - issues disabled or denied)"
 
     return result
 
