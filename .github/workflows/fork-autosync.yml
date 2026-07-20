@@ -56,6 +56,7 @@ on:
 
 permissions:
   contents: read
+  issues: write # collector issue for conflicted forks, in this repo
 
 jobs:
   sync:
@@ -135,13 +136,21 @@ jobs:
           ORG: ${{ steps.params.outputs.org }}
           TOPIC: ${{ steps.params.outputs.topic }}
           DRY: ${{ steps.params.outputs.dry }}
+          # Conflicts are collected into one issue here, not into the forks:
+          # GitHub disables issues on forks by default, so a per-fork issue
+          # cannot be created for any repository in mirrored-projects.
+          ISSUE_REPO: ${{ github.repository }}
+          # That issue lives in THIS repo, which the fork PAT cannot reach - a
+          # fine-grained PAT is scoped to one org. GITHUB_TOKEN owns this repo,
+          # so the issue operations run under it instead.
+          ISSUE_GH_TOKEN: ${{ github.token }}
         run: |
           # pipefail so tee cannot mask a non-zero exit. The script exits
           # non-zero on conflicts and errors, failing the job on purpose - the
-          # summary and the per-repo issues carry the detail.
+          # summary and the collector issue carry the detail.
           set -o pipefail
           python services/devtools/scripts/gh-fork-autosync.py \
-            -o "$ORG" --topic "$TOPIC" $DRY 2>&1 \
+            -o "$ORG" --topic "$TOPIC" --issue-repo "$ISSUE_REPO" $DRY 2>&1 \
             | tee /tmp/sync-output.log
 
       - name: Job summary

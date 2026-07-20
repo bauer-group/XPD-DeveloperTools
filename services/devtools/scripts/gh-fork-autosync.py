@@ -29,6 +29,7 @@ Not to be confused with gh-sync-forks.py, which syncs an individual fork's
 default branch and assumes both sides share a branch name.
 """
 
+import os
 import sys
 import json
 import subprocess
@@ -44,25 +45,35 @@ NC = '\033[0m'
 BOLD = '\033[1m'
 DIM = '\033[2m'
 
-# Issue titles deliberately match sync-upstream.yml so a repo that also runs the
-# workflow updates the existing issue instead of opening a second one.
-ISSUE_TITLE_MIRROR = "⚠️ Upstream-Sync-Konflikt: {branch}"
-ISSUE_TITLE_INTEGRATE = "⚠️ Merge-Konflikt: {source} → {target}"
+# A single collector issue in one reporting repo, not one issue per fork:
+# GitHub disables issues on forks by default, so per-fork issues mostly cannot
+# be created at all. Matched by title prefix, so it survives body rewrites.
+COLLECTOR_TITLE = "⚠️ Fork-Sync: Konflikte in {org}"
+
+# Statuses that mean a repository needs a human.
+PROBLEM_STATUSES = ("conflict", "error", "no-mirror-branch", "not-a-fork")
 
 
-def gh(args: List[str]) -> Tuple[int, str]:
+def gh(args: List[str], token: Optional[str] = None) -> Tuple[int, str]:
     """Run gh and return (returncode, combined stdout+stderr).
 
     Never raises - callers classify the outcome from the return code and text,
     because HTTP 409 (conflict) is an expected result here, not a failure.
+
+    token overrides GH_TOKEN for this call only. The collector issue usually
+    lives in a different organization than the forks, and a fine-grained PAT is
+    scoped to exactly one resource owner, so one token cannot cover both.
 
     encoding is pinned to UTF-8: text=True alone decodes with the locale
     encoding, and on a cp1252 Windows console any non-Latin-1 byte in an API
     response kills the reader thread, leaving stdout as None next to a zero
     return code.
     """
+    env = None
+    if token:
+        env = {**os.environ, "GH_TOKEN": token, "GITHUB_TOKEN": token}
     result = subprocess.run(["gh"] + args, capture_output=True,
-                            encoding="utf-8", errors="replace")
+                            encoding="utf-8", errors="replace", env=env)
     return result.returncode, ((result.stdout or "") + (result.stderr or "")).strip()
 
 
@@ -187,79 +198,124 @@ def merge_forward(repo: str, base: str, head: str) -> Tuple[str, str]:
     return "error", out.splitlines()[0] if out else "unknown error"
 
 
-def ensure_conflict_issue(repo: str, title: str, body: str) -> bool:
-    """Open a conflict issue, or comment on the existing one. Best effort."""
+def upsert_collector_issue(issue_repo: str, org: str, problems: List[Dict],
+                           run_url: Optional[str],
+                           token: Optional[str] = None) -> bool:
+    """Maintain a single collector issue listing every fork that needs attention.
+
+    One issue in one repository, rather than one per fork: GitHub disables
+    issues on forks by default, so a per-fork issue usually cannot be created
+    at all.
+
+    Reopens/updates while problems exist, closes once they are gone.
+    """
+    existing = find_collector_issue(issue_repo, org, token)
+
+    if not problems:
+        if existing:
+            gh(["issue", "comment", str(existing), "-R", issue_repo,
+                "--body", "Alle Forks synchronisieren wieder sauber - automatisch geschlossen."], token)
+            rc, _ = gh(["issue", "close", str(existing), "-R", issue_repo], token)
+            return rc == 0
+        return True
+
+    body = collector_body(org, problems, run_url)
+
+    if existing:
+        rc, _ = gh(["issue", "edit", str(existing), "-R", issue_repo, "--body", body], token)
+        if rc == 0:
+            gh(["issue", "reopen", str(existing), "-R", issue_repo], token)
+        return rc == 0
+
     for label, color, desc in (
         ("sync", "1D76DB", "Upstream sync automation"),
         ("conflict", "B60205", "Requires manual resolution"),
         ("automated", "0E8A16", "Created by automation"),
     ):
-        gh(["label", "create", label, "-R", repo, "--color", color, "--description", desc])
-
-    rc, out = gh([
-        "issue", "list", "-R", repo,
-        "--state", "open", "--label", "sync", "--label", "conflict",
-        "--json", "number,title",
-    ])
-    if rc == 0 and out:
-        try:
-            for issue in json.loads(out):
-                if issue.get("title") == title:
-                    rc, _ = gh(["issue", "comment", str(issue["number"]), "-R", repo,
-                                "--body", "Konflikt besteht weiterhin (gh-fork-autosync)."])
-                    return rc == 0
-        except json.JSONDecodeError:
-            pass
+        gh(["label", "create", label, "-R", issue_repo,
+            "--color", color, "--description", desc], token)
 
     rc, _ = gh([
-        "issue", "create", "-R", repo,
-        "--title", title, "--body", body,
+        "issue", "create", "-R", issue_repo,
+        "--title", COLLECTOR_TITLE.format(org=org), "--body", body,
         "--label", "sync", "--label", "conflict", "--label", "automated",
-    ])
+    ], token)
     if rc != 0:
-        # Label creation may be denied on repos where we lack triage rights.
-        rc, _ = gh(["issue", "create", "-R", repo, "--title", title, "--body", body])
+        # Labels may not exist and creation may be denied; the issue matters more.
+        rc, _ = gh(["issue", "create", "-R", issue_repo,
+                    "--title", COLLECTOR_TITLE.format(org=org), "--body", body], token)
     return rc == 0
 
 
-def mirror_conflict_body(repo: str, parent: str, branch: str) -> str:
-    return (
-        "## Automatischer Upstream-Sync fehlgeschlagen\n\n"
-        f"Der Mirror-Branch `{branch}` konnte nicht automatisch mit dem Upstream "
-        f"(`{parent}`) synchronisiert werden - er ist divergiert und erfordert eine "
-        "manuelle Auflösung.\n\n"
-        "Erzeugt von `gh-fork-autosync`.\n\n"
-        "### Manuelle Auflösung\n"
-        "```bash\n"
-        f"git clone https://github.com/{repo}.git && cd {repo.split('/')[-1]}\n"
-        f"git checkout {branch}\n"
-        f"git remote add upstream https://github.com/{parent}.git\n"
-        "git fetch upstream\n"
-        f"git merge upstream/{branch}\n"
-        "# Konflikte auflösen, dann:\n"
-        f"git push origin {branch}\n"
-        "```\n"
-    )
+def find_collector_issue(issue_repo: str, org: str,
+                         token: Optional[str] = None) -> Optional[int]:
+    """Return the number of this org's collector issue, open or closed.
+
+    Matched on the full title including the org, so one reporting repo can hold
+    a separate collector issue per organization.
+    """
+    rc, out = gh([
+        "issue", "list", "-R", issue_repo, "--state", "all", "--limit", "100",
+        "--json", "number,title",
+    ], token)
+    if rc != 0 or not out:
+        return None
+
+    wanted = COLLECTOR_TITLE.format(org=org)
+    try:
+        for issue in json.loads(out):
+            if issue.get("title") == wanted:
+                return issue["number"]
+    except (json.JSONDecodeError, KeyError):
+        pass
+    return None
 
 
-def integrate_conflict_body(repo: str, source: str, target: str) -> str:
-    return (
-        "## Automatische Integration fehlgeschlagen\n\n"
-        f"Der Merge von `{source}` nach `{target}` konnte nicht automatisch "
-        "abgeschlossen werden. Eine manuelle Auflösung ist erforderlich.\n\n"
-        "Erzeugt von `gh-fork-autosync`.\n\n"
-        "### Manuelle Auflösung\n"
-        "```bash\n"
-        f"git clone https://github.com/{repo}.git && cd {repo.split('/')[-1]}\n"
-        f"git checkout {target}\n"
-        f"git merge origin/{source}\n"
-        "# Konflikte auflösen, dann:\n"
-        f"git push origin {target}\n"
-        "```\n"
-    )
+def collector_body(org: str, problems: List[Dict], run_url: Optional[str]) -> str:
+    lines = [
+        f"## Fork-Sync: {len(problems)} Repositories brauchen Aufmerksamkeit",
+        "",
+        f"Organisation: `{org}`  ",
+        "Erzeugt und aktualisiert von `gh-fork-autosync`.",
+        "",
+        "| Repository | Stufe | Status | Detail |",
+        "|------------|-------|--------|--------|",
+    ]
+    for r in problems:
+        for stage, label in (("stage_a", f"mirror `{r['mirror']}`"),
+                             ("stage_b", f"integrate → `{r['target']}`")):
+            if r[stage] in PROBLEM_STATUSES:
+                lines.append(
+                    f"| `{r['repo']}` | {label} | **{r[stage]}** | {r['detail']} |"
+                )
+
+    lines += [
+        "",
+        "### Auflösung eines divergierten Mirror-Branches",
+        "",
+        "```bash",
+        "git clone https://github.com/<org>/<repo>.git && cd <repo>",
+        "git checkout <mirror-branch>",
+        "git remote add upstream https://github.com/<upstream>.git",
+        "git fetch upstream",
+        "git merge upstream/<mirror-branch>",
+        "# Konflikte auflösen, dann:",
+        "git push origin <mirror-branch>",
+        "```",
+        "",
+        "Trägt der Fork eigene Commits auf dem Mirror-Branch, gehören diese auf",
+        "einen Integrationsbranch (siehe `Bugsink` mit `workspace/main`) - der",
+        "Mirror-Branch sollte dem Upstream folgen können.",
+        "",
+        "Dieses Issue schließt sich automatisch, sobald alle Forks wieder sauber",
+        "synchronisieren.",
+    ]
+    if run_url:
+        lines += ["", f"Letzter Lauf: {run_url}"]
+    return "\n".join(lines)
 
 
-def process_repo(repo: str, dry_run: bool, create_issues: bool) -> Dict:
+def process_repo(repo: str, dry_run: bool) -> Dict:
     """Run both stages for one repository and return a result record."""
     result = {"repo": repo, "mirror": None, "target": None,
               "stage_a": "skipped", "stage_b": "skipped", "detail": ""}
@@ -307,15 +363,6 @@ def process_repo(repo: str, dry_run: bool, create_issues: bool) -> Dict:
     result["detail"] = detail
 
     if status == "conflict":
-        if create_issues and not ensure_conflict_issue(
-            repo,
-            ISSUE_TITLE_MIRROR.format(branch=mirror),
-            mirror_conflict_body(repo, parent, mirror),
-        ):
-            # Forks have issues disabled by default, so this is the norm rather
-            # than the exception. Saying so beats promising an issue that was
-            # never created.
-            result["detail"] += " (no issue created - issues disabled or denied)"
         return result
 
     if status == "error":
@@ -328,13 +375,6 @@ def process_repo(repo: str, dry_run: bool, create_issues: bool) -> Dict:
     status_b, detail_b = merge_forward(repo, base=fork_default, head=mirror)
     result["stage_b"] = status_b
     result["detail"] = f"{detail}; {detail_b}"
-
-    if status_b == "conflict" and create_issues and not ensure_conflict_issue(
-        repo,
-        ISSUE_TITLE_INTEGRATE.format(source=mirror, target=fork_default),
-        integrate_conflict_body(repo, mirror, fork_default),
-    ):
-        result["detail"] += " (no issue created - issues disabled or denied)"
 
     return result
 
@@ -372,8 +412,9 @@ Examples:
   # Every fork in the org, regardless of topic
   gh-fork-autosync.py -o mirrored-projects
 
-  # Sync without opening conflict issues
-  gh-fork-autosync.py -o mirrored-projects --topic forked-repo --no-issues
+  # Collect every problem in one issue instead of just reporting
+  gh-fork-autosync.py -o mirrored-projects --topic forked-repo \
+      --issue-repo bauer-group/XPD-DeveloperTools
 
   # Single repository
   gh-fork-autosync.py -o mirrored-projects --repo Bugsink
@@ -385,8 +426,11 @@ Examples:
                         help="Only repos carrying this topic (e.g. forked-repo)")
     parser.add_argument("--repo",
                         help="Restrict to a single repository name within the org")
-    parser.add_argument("--no-issues", action="store_true",
-                        help="Do not open/update conflict issues, only report")
+    parser.add_argument("--issue-repo",
+                        help="owner/repo for the collector issue listing every "
+                             "fork that needs attention (omit = report only). "
+                             "Set ISSUE_GH_TOKEN if that repo needs a different "
+                             "token than the forks")
     parser.add_argument("-d", "--dry-run", action="store_true",
                         help="Show what would be done, change nothing")
     parser.add_argument("--limit", type=int, default=1000,
@@ -441,7 +485,7 @@ Examples:
     for repo in repos:
         name = repo["nameWithOwner"]
         print(f"{CYAN}→{NC} {name}")
-        result = process_repo(name, args.dry_run, create_issues=not args.no_issues)
+        result = process_repo(name, args.dry_run)
         results.append(result)
 
         stages = f"  mirror({result['mirror'] or '?'}): {render(result['stage_a'])}"
@@ -467,13 +511,48 @@ Examples:
     print(f"  Conflicts:  {YELLOW}{conflicts}{NC}")
     print(f"  Errors:     {RED}{errors}{NC}")
 
-    if conflicts or errors:
+    problems = [r for r in results
+                if r["stage_a"] in PROBLEM_STATUSES or r["stage_b"] in PROBLEM_STATUSES]
+
+    if problems:
         print()
-        for r in results:
+        for r in problems:
             for stage in ("stage_a", "stage_b"):
-                if r[stage] in ("conflict", "error", "no-mirror-branch", "not-a-fork"):
+                if r[stage] in PROBLEM_STATUSES:
                     print(f"  {render(r[stage])}  {r['repo']}  {DIM}{r['detail']}{NC}")
     print()
+
+    # ---- Collector issue ---------------------------------------------------
+    # The issue describes the state of a *full* scan. A run narrowed to one
+    # repository sees only a slice, so an empty problem list there says nothing
+    # about the rest of the org - closing on that basis would hide real
+    # conflicts.
+    if args.issue_repo and args.repo:
+        print(f"{YELLOW}[WARN] --issue-repo ignored: a --repo run covers only "
+              f"part of the org and must not update the collector issue.{NC}")
+        print()
+    elif args.issue_repo and not args.dry_run:
+        run_url = None
+        if os.environ.get("GITHUB_RUN_ID"):
+            run_url = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}"
+                       f"/{os.environ.get('GITHUB_REPOSITORY', '')}"
+                       f"/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+
+        # Read from the environment rather than a CLI flag so the token never
+        # appears in the process list.
+        issue_token = os.environ.get("ISSUE_GH_TOKEN") or None
+
+        if upsert_collector_issue(args.issue_repo, args.org, problems, run_url,
+                                  issue_token):
+            if problems:
+                print(f"Collector issue updated in {args.issue_repo}")
+            else:
+                print(f"No problems - collector issue in {args.issue_repo} closed if it was open")
+        else:
+            # Do not let a broken report make a bad run look clean.
+            print(f"{RED}[WARN] Could not maintain the collector issue in "
+                  f"{args.issue_repo}{NC}", file=sys.stderr)
+        print()
 
     # Conflicts are an expected, actionable state and must not read as success.
     sys.exit(1 if (conflicts or errors) else 0)
