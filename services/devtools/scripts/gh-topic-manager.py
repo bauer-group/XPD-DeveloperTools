@@ -394,6 +394,7 @@ Examples:
         print()
 
     modified = 0
+    failed = 0
 
     # Add topics
     if args.add:
@@ -405,6 +406,8 @@ Examples:
             print(f"{CYAN}→{NC} {repo['nameWithOwner']}")
             if add_topics(repo["nameWithOwner"], topics_to_add, args.dry_run):
                 modified += 1
+            else:
+                failed += 1
 
     # Remove topics
     if args.remove:
@@ -419,6 +422,8 @@ Examples:
                 print(f"{CYAN}→{NC} {repo['nameWithOwner']}")
                 if remove_topics(repo["nameWithOwner"], to_remove, args.dry_run):
                     modified += 1
+                else:
+                    failed += 1
 
     # Replace topic
     if args.replace:
@@ -436,6 +441,8 @@ Examples:
                 print(f"{CYAN}→{NC} {repo['nameWithOwner']}")
                 if replace_topic(repo["nameWithOwner"], old_topic, new_topic, args.dry_run):
                     modified += 1
+                else:
+                    failed += 1
 
     # Sync topics
     if args.sync:
@@ -450,11 +457,20 @@ Examples:
                 print(f"{CYAN}→{NC} {repo['nameWithOwner']}")
                 if add_topics(repo["nameWithOwner"], list(missing), args.dry_run):
                     modified += 1
+                else:
+                    failed += 1
 
     # Summary
     if args.add or args.remove or args.replace or args.sync:
         print()
         print(f"{GREEN}✓ {modified} repositories modified{NC}")
+        if failed:
+            # Exit non-zero so a scheduled run cannot report success while
+            # writes were denied - a token missing Administration:write fails
+            # every single edit and would otherwise look like "nothing to do".
+            print(f"{RED}✗ {failed} repositories failed{NC}")
+            print()
+            sys.exit(1)
         print()
 
 
