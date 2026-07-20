@@ -3,13 +3,15 @@
 # Runtime Container für Git-Operationen und Entwicklungstools
 # =============================================================================
 
-param(
-    [Parameter(Position = 0)]
-    [string]$Command = "help",
-
-    [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
-    [string[]]$Arguments
-)
+# NOTE: deliberately no param() block. A [Parameter()] attribute would turn this
+# into an advanced script, which inherits PowerShell's common parameters
+# (-Debug, -Verbose, -OutVariable, ...). Those bind before
+# ValueFromRemainingArguments, so short tool flags never reach the tool: -o
+# fails as ambiguous (-OutVariable/-OutBuffer) and -d is silently swallowed by
+# -Debug, turning an intended --dry-run into a real write. Reading $args keeps
+# this a simple script and passes every token through untouched.
+$Command = if ($args.Count -gt 0) { [string]$args[0] } else { "help" }
+$Arguments = if ($args.Count -gt 1) { [string[]]$args[1..($args.Count - 1)] } else { @() }
 
 $ErrorActionPreference = "Stop"
 
