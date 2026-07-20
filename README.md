@@ -74,6 +74,7 @@ Interactive container with Git, Python 3.13, and shell utilities for Git-based d
 | `gh-visibility` | Change repo visibility (public/private) |
 | `gh-clone-org` | Clone all repos from organization |
 | `gh-sync-forks` | Sync forked repos with upstream |
+| `gh-fork-autosync` | Sync all forks in an org from upstream (topic-filtered) |
 | `gh-pr-cleanup` | Clean stale PRs and branches |
 | `gh-secrets-audit` | Audit secrets across repos |
 | `gh-secrets-sync` | Sync local `.env` to repo secrets (push + prune obsolete) |
@@ -165,6 +166,16 @@ Interactive container with Git, Python 3.13, and shell utilities for Git-based d
 ./devtools.sh gh-sync-forks --list                       # Show fork status
 ./devtools.sh gh-sync-forks myuser/my-fork               # Sync single fork
 ./devtools.sh gh-sync-forks --all --behind               # Sync all behind forks
+
+# Keep a whole org of forks current (no workflow needed in the forks)
+./devtools.sh gh-fork-autosync -o myorg --topic forked-repo --dry-run
+./devtools.sh gh-fork-autosync -o myorg --topic forked-repo
+./devtools.sh gh-fork-autosync -o myorg --repo MyFork    # Single repo
+#
+# Two stages per repo: the mirror branch (named like the upstream default) is
+# synced via the merge-upstream API; if the fork's own default branch differs,
+# the mirror is merged forward server-side. Conflicts open an issue in the
+# affected repo. Runs daily via .github/workflows/fork-autosync.yml.
 
 # Clean stale PRs and branches
 ./devtools.sh gh-pr-cleanup myorg/repo --list --stale-days 30

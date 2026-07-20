@@ -1,0 +1,128 @@
+# =============================================================================
+# Fork Auto-Sync
+# =============================================================================
+# Keeps every tagged fork in an organization current with its upstream.
+#
+# Runs gh-fork-autosync centrally, so the forks themselves need no workflow
+# installed. Per repository it calls the merge-upstream API for the mirror
+# branch and, when the fork's default branch differs, merges the mirror
+# forward server-side.
+#
+# Token: DEVELOPERTOOLS_PAT (same secret as devtools-automation.yml).
+# Needs `repo` scope across the target organization. A PAT is required rather
+# than GITHUB_TOKEN both because the target repos live in another org and so
+# that the resulting commits trigger the forks' own build workflows.
+# =============================================================================
+
+name: 🔄 Fork Auto-Sync
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # Daily 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      org:
+        description: 'Organization holding the forks'
+        required: false
+        default: 'mirrored-projects'
+      topic:
+        description: 'Only repos carrying this topic (empty = all forks)'
+        required: false
+        default: 'forked-repo'
+      dry-run:
+        description: 'Preview only, change nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: 'Sync forks (${{ inputs.org || ''mirrored-projects'' }})'
+    runs-on: ubuntu-latest
+    environment: automation
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
+    steps:
+      - name: Check DEVELOPERTOOLS_PAT
+        id: auth
+        env:
+          TOKEN: ${{ secrets.DEVELOPERTOOLS_PAT }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::DEVELOPERTOOLS_PAT secret is not configured. Skipping fork sync."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.auth.outputs.skip != 'true'
+
+      - name: Build arguments
+        if: steps.auth.outputs.skip != 'true'
+        id: args
+        env:
+          # Scheduled runs carry no inputs, so fall back to the defaults here.
+          ORG: ${{ inputs.org || 'mirrored-projects' }}
+          TOPIC: ${{ github.event_name == 'schedule' && 'forked-repo' || inputs.topic }}
+          IS_SCHEDULE: ${{ github.event_name == 'schedule' }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          ARGS="-o $ORG"
+          [ -n "$TOPIC" ] && ARGS="$ARGS --topic $TOPIC"
+
+          # A scheduled run is the point of this workflow - it always applies.
+          # Manual runs default to a preview so a dispatch cannot surprise anyone.
+          if [ "$IS_SCHEDULE" != "true" ] && [ "$DRY_RUN" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+          echo "Arguments: $ARGS"
+
+      - name: Run gh-fork-autosync
+        if: steps.auth.outputs.skip != 'true'
+        env:
+          SCRIPT_ARGS: ${{ steps.args.outputs.args }}
+        run: |
+          # pipefail so `tee` cannot mask a non-zero exit. The script exits
+          # non-zero on conflicts and errors, which fails the job on purpose -
+          # the summary and the per-repo issues carry the detail.
+          set -o pipefail
+          python services/devtools/scripts/gh-fork-autosync.py $SCRIPT_ARGS 2>&1 \
+            | tee /tmp/sync-output.log
+
+      - name: Job summary
+        if: always()
+        env:
+          SKIP: ${{ steps.auth.outputs.skip }}
+          JOB_STATUS: ${{ job.status }}
+          SCRIPT_ARGS: ${{ steps.args.outputs.args }}
+        run: |
+          if [ "$SKIP" = "true" ]; then
+            {
+              echo "## ⚠️ Fork Auto-Sync — Skipped"
+              echo ""
+              echo "DEVELOPERTOOLS_PAT secret is not configured."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          {
+            echo "## 🔄 Fork Auto-Sync"
+            echo ""
+            echo "- **Args**: \`${SCRIPT_ARGS}\`"
+            echo "- **Status**: ${JOB_STATUS}"
+            echo ""
+            if [ -f /tmp/sync-output.log ]; then
+              echo '```'
+              sed 's/\x1b\[[0-9;]*m//g' /tmp/sync-output.log
+              echo '```'
+            fi
+            echo ""
+            echo "> A red job means at least one fork hit a merge conflict or an"
+            echo "> error. Conflicts open an issue in the affected repository."
+          } >> "$GITHUB_STEP_SUMMARY"

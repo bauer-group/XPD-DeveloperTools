@@ -228,6 +228,12 @@
           "args": "[-o <org>]"
         },
         {
+          "command": "gh-fork-autosync",
+          "script": "gh-fork-autosync.py",
+          "description": "Sync every fork in an org from upstream (topic-filtered, no workflows in forks)",
+          "args": "-o <org> [--topic <topic>] [--dry-run]"
+        },
+        {
           "command": "gh-labels-sync",
           "script": "gh-labels-sync.py",
           "description": "Sync labels between GitHub repositories",
