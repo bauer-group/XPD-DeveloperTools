@@ -13,13 +13,13 @@ This repository contains independent tools that can be used separately:
 
 ## DevTools Runtime Container
 
-Interactive container with Git, Python 3.13, and shell utilities for Git-based development workflows.
+Interactive container with Git, Python 3.14, and shell utilities for Git-based development workflows.
 
 ### Features
 
 - **Git Tools** - Advanced Git commands, statistics, history rewriting, and automation
 - **GitHub Tools** - Repository management, topics, archiving, and workflow triggers
-- **Python Environment** - Full Python 3.13 with common libraries (GitPython, Click, Rich, etc.)
+- **Python Environment** - Full Python 3.14 with common libraries (GitPython, Click, Rich, etc.)
 - **Shell Utilities** - curl, jq, yq, git-filter-repo, GitHub CLI, and more
 - **Platform Independent** - Runs identically on Windows, macOS, and Linux
 - **Auto-configured** - Git credentials from host, helpful aliases pre-installed
