@@ -1,3 +1,13 @@
+## [0.22.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.21.0...v0.22.0) (2026-07-20)
+
+### 🚀 Features
+
+* **gh-fork-autosync:** replaced per-fork issues with a collector ([81630e0](https://github.com/bauer-group/XPD-DeveloperTools/commit/81630e0b9a5109a77079ba0724876a66b890ad0e))
+
+### 🐛 Bug Fixes
+
+* **gh-fork-autosync:** reported failed conflict-issue creation ([1b03a4a](https://github.com/bauer-group/XPD-DeveloperTools/commit/1b03a4a304c81d6ba869edb63870e46d472c5339))
+
 ## [0.21.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.20.0...v0.21.0) (2026-07-20)
 
 ### 🚀 Features
