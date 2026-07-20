@@ -1,3 +1,20 @@
+## [0.21.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.20.0...v0.21.0) (2026-07-20)
+
+### 🚀 Features
+
+* **fork-autosync:** added tagging step and dedicated token ([ed72fd7](https://github.com/bauer-group/XPD-DeveloperTools/commit/ed72fd7eb3c502e19eeeca22bf90eb813ec51436))
+* **gh-fork-autosync:** added org-wide fork sync ([5204e9c](https://github.com/bauer-group/XPD-DeveloperTools/commit/5204e9c595450a84823dc34f51efa01dec73c97a))
+* **gh-topics:** added --fork/--no-fork repo filter ([a8db8dd](https://github.com/bauer-group/XPD-DeveloperTools/commit/a8db8dd3759d0d4a939d8c59f8b0d2b57464a7a6))
+
+### 🐛 Bug Fixes
+
+* **devtools:** stopped PowerShell from eating short flags ([8dcb2dc](https://github.com/bauer-group/XPD-DeveloperTools/commit/8dcb2dc77731ff94b4de37c3598c5e8978520928))
+* **docker:** normalized script line endings during build ([f302ec7](https://github.com/bauer-group/XPD-DeveloperTools/commit/f302ec7975f39bb344cedfe71c05c6a8442e001d))
+* **docker:** update Python version to 3.14 in README and Dockerfile ([fb9bdd3](https://github.com/bauer-group/XPD-DeveloperTools/commit/fb9bdd3e7821e93135d1e38943ccfe692b08c4e8))
+* **gh-topics:** repaired org-wide repo lookup ([222801f](https://github.com/bauer-group/XPD-DeveloperTools/commit/222801fe09fe24734b04aa2f30f5945ddec3631d))
+* **gh-topics:** surfaced failed topic writes in the exit code ([d60b49a](https://github.com/bauer-group/XPD-DeveloperTools/commit/d60b49a4c5185d7321d3446cdc5a1790bd4e07d3))
+* **git:** forced LF line endings for Python scripts ([ace402c](https://github.com/bauer-group/XPD-DeveloperTools/commit/ace402c85492e8f23c3c501085ae71a54b61078f))
+
 ## [0.20.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.19.0...v0.20.0) (2026-07-19)
 
 ### 🚀 Features
