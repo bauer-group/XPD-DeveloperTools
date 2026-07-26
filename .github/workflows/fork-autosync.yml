@@ -12,6 +12,13 @@
 #              differs - a server-side merge forward. The forks themselves need
 #              no workflow installed.
 #
+# Two guards run per fork during step 2:
+#   - GitHub Actions is turned OFF on every fork. A synced fork carries the
+#     upstream's .github/workflows/*, so with Actions on it would run that CI
+#     on each push and cron - dozens of failing runs per sync for code we only
+#     mirror. The mirrors are code copies, not build targets.
+#   - Archived forks are read-only and are skipped, not treated as errors.
+#
 # ┌─ Token ─────────────────────────────────────────────────────────────┐
 # │ Secret: DEVELOPERTOOLSFORKSYNC_PAT                                  │
 # │ Stored in the `automation` GitHub Environment.                      │
@@ -21,7 +28,7 @@
 # │ bauer-group and cannot reach mirrored-projects.                     │
 # │                                                                     │
 # │ Fine-grained permissions (on the target org, all repositories):     │
-# │   Administration:  Read and write   PUT /repos/{o}/{r}/topics       │
+# │   Administration:  Read and write   topics + fork Actions toggle    │
 # │   Contents:        Read and write   merge-upstream + merges         │
 # │   Workflows:       Read and write   sync .github/workflows/* files  │
 # │   Issues:          Read and write   conflict issues + labels        │

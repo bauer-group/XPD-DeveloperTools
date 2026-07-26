@@ -65,7 +65,7 @@ def get_repos(org: Optional[str] = None, pattern: Optional[str] = None,
     if org:
         args.append(org)
 
-    args.extend(["--json", "name,nameWithOwner,repositoryTopics,isFork",
+    args.extend(["--json", "name,nameWithOwner,repositoryTopics,isFork,isArchived",
                  "--limit", str(limit)])
 
     try:
@@ -392,6 +392,17 @@ Examples:
     if args.dry_run:
         print(f"{YELLOW}DRY RUN - No changes will be made{NC}")
         print()
+
+    # Archived repos are read-only, so `gh repo edit` returns an error for every
+    # topic change. Drop them from write operations (list/analyze/missing above
+    # already returned) so a scheduled tagging run isn't failed by a retired
+    # mirror. Single-repo mode has no isArchived flag and is left to gh's error.
+    archived = [r for r in repos if r.get("isArchived")]
+    if archived:
+        print(f"{YELLOW}Skipping {len(archived)} archived repo(s):{NC} "
+              + ", ".join(r["nameWithOwner"] for r in archived))
+        print()
+        repos = [r for r in repos if not r.get("isArchived")]
 
     modified = 0
     failed = 0

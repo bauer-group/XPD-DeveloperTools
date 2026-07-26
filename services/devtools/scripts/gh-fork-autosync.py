@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # @name: gh-fork-autosync
-# @description: Sync every fork in an org from upstream (topic-filtered, no workflows in forks)
+# @description: Sync every fork in an org from upstream; disables fork Actions, skips archived
 # @category: github
 # @usage: gh-fork-autosync.py -o <org> [--topic <topic>] [--dry-run]
 """
@@ -24,6 +24,16 @@ Stage B is a separate step because merge-upstream can only sync a fork branch
 from the upstream branch *of the same name* - it takes no upstream-branch
 parameter. A fork whose default is `workspace/main` therefore cannot be synced
 directly; its `main` is synced first, then merged forward.
+
+Two guards run per repository before the stages:
+
+  * GitHub Actions is turned off on every fork (PUT .../actions/permissions,
+    enabled=false). A synced fork carries the upstream's .github/workflows/*, so
+    with Actions on it would run that CI on every push and cron - dozens of
+    failing runs per sync for code we only mirror. Opt out with
+    --keep-fork-actions.
+  * Archived forks are read-only and are skipped, not synced: every write to
+    them (merge-upstream, merges, the Actions toggle) returns HTTP 403.
 
 Not to be confused with gh-sync-forks.py, which syncs an individual fork's
 default branch and assumes both sides share a branch name.
@@ -50,7 +60,8 @@ DIM = '\033[2m'
 # be created at all. Matched by title prefix, so it survives body rewrites.
 COLLECTOR_TITLE = "⚠️ Fork-Sync: Konflikte in {org}"
 
-# Statuses that mean a repository needs a human.
+# Statuses that mean a repository needs a human. "archived" is deliberately not
+# here: a retired mirror is skipped, not a problem.
 PROBLEM_STATUSES = ("conflict", "error", "no-mirror-branch", "not-a-fork")
 
 
@@ -166,7 +177,32 @@ def repo_details(repo: str) -> Optional[Dict]:
         "default_branch": data.get("default_branch"),
         "parent": parent.get("full_name"),
         "parent_default_branch": parent.get("default_branch"),
+        "archived": data.get("archived", False),
     }
+
+
+def disable_fork_actions(repo: str) -> Tuple[bool, str]:
+    """Turn GitHub Actions off for a fork so it never runs its upstream's CI.
+
+    A synced fork carries the upstream's .github/workflows/*; with Actions
+    enabled, every merge-upstream push and every cron in those files fires a run
+    in the mirror - dozens of failing runs per sync, for code we only mirror and
+    never build. Disabling Actions at the repo level keeps the fork a pure code
+    copy.
+
+    Idempotent (re-disabling an already-off repo is a no-op) and best-effort:
+    needs Administration: write, which topic tagging already requires, so a
+    failure here is unusual and is surfaced rather than swallowed.
+    """
+    rc, out = gh([
+        "api", "--method", "PUT",
+        f"repos/{repo}/actions/permissions",
+        "-F", "enabled=false",
+    ])
+    if rc == 0:
+        return True, "actions disabled"
+    first = out.splitlines()[0] if out else "unknown error"
+    return False, f"could not disable Actions: {first}"
 
 
 def branch_exists(repo: str, branch: str) -> bool:
@@ -315,9 +351,10 @@ def collector_body(org: str, problems: List[Dict], run_url: Optional[str]) -> st
         "|------------|-------|--------|--------|",
     ]
     for r in problems:
-        for stage, label in (("stage_a", f"mirror `{r['mirror']}`"),
+        for stage, label in (("actions", "disable Actions"),
+                             ("stage_a", f"mirror `{r['mirror']}`"),
                              ("stage_b", f"integrate → `{r['target']}`")):
-            if r[stage] in PROBLEM_STATUSES:
+            if r.get(stage) in PROBLEM_STATUSES:
                 lines.append(
                     f"| `{r['repo']}` | {label} | **{r[stage]}** | {r['detail']} |"
                 )
@@ -348,15 +385,24 @@ def collector_body(org: str, problems: List[Dict], run_url: Optional[str]) -> st
     return "\n".join(lines)
 
 
-def process_repo(repo: str, dry_run: bool) -> Dict:
+def process_repo(repo: str, dry_run: bool, disable_actions: bool = True) -> Dict:
     """Run both stages for one repository and return a result record."""
     result = {"repo": repo, "mirror": None, "target": None,
-              "stage_a": "skipped", "stage_b": "skipped", "detail": ""}
+              "stage_a": "skipped", "stage_b": "skipped",
+              "actions": "skipped", "detail": ""}
 
     details = repo_details(repo)
     if not details:
         result["stage_a"] = "error"
         result["detail"] = "could not read repository"
+        return result
+
+    # Archived repos are read-only: merge-upstream, merges and the Actions
+    # toggle all return 403. Skip them cleanly - a retired mirror is not a
+    # failure and must not fail the job or land in the collector issue.
+    if details.get("archived"):
+        result["stage_a"] = "archived"
+        result["detail"] = "repository is archived (read-only) - skipped"
         return result
 
     parent = details["parent"]
@@ -369,6 +415,23 @@ def process_repo(repo: str, dry_run: bool) -> Dict:
     fork_default = details["default_branch"]
     result["mirror"] = mirror
     result["target"] = fork_default
+
+    # Keep the fork from running its upstream's CI. Done first - and for every
+    # fork, not just the ones that get updated - so the merge-upstream push below
+    # cannot trigger a workflow and a fork left enabled earlier is corrected too.
+    if not disable_actions:
+        result["actions"] = "kept"
+    elif dry_run:
+        result["actions"] = "dry-run"
+    else:
+        ok, adetail = disable_fork_actions(repo)
+        if not ok:
+            # Do not sync a fork whose Actions we could not turn off: the
+            # merge-upstream push would run the very workflows we mean to stop.
+            result["actions"] = "error"
+            result["detail"] = adetail
+            return result
+        result["actions"] = "disabled"
 
     if not mirror:
         result["stage_a"] = "error"
@@ -418,6 +481,9 @@ STATUS_STYLE = {
     "up-to-date": (DIM, "up to date"),
     "dry-run": (CYAN, "dry run"),
     "skipped": (DIM, "-"),
+    "disabled": (DIM, "actions off"),
+    "kept": (DIM, "actions kept"),
+    "archived": (DIM, "archived"),
     "conflict": (YELLOW, "CONFLICT"),
     "no-mirror-branch": (YELLOW, "no mirror branch"),
     "not-a-fork": (YELLOW, "not a fork"),
@@ -466,6 +532,12 @@ Examples:
                              "token than the forks")
     parser.add_argument("-d", "--dry-run", action="store_true",
                         help="Show what would be done, change nothing")
+    parser.add_argument("--keep-fork-actions", action="store_true",
+                        help="Do not disable GitHub Actions on the forks. By "
+                             "default Actions is turned off on every fork so a "
+                             "mirror never runs its upstream's CI (the synced "
+                             ".github/workflows/* would otherwise fire on each "
+                             "push and on cron).")
     parser.add_argument("--limit", type=int, default=1000,
                         help="Max repos to fetch (default: 1000)")
 
@@ -518,24 +590,31 @@ Examples:
     for repo in repos:
         name = repo["nameWithOwner"]
         print(f"{CYAN}→{NC} {name}")
-        result = process_repo(name, args.dry_run)
+        result = process_repo(name, args.dry_run,
+                              disable_actions=not args.keep_fork_actions)
         results.append(result)
 
         stages = f"  mirror({result['mirror'] or '?'}): {render(result['stage_a'])}"
         if result["stage_b"] != "skipped":
             stages += f"  →  {result['target']}: {render(result['stage_b'])}"
+        if result["actions"] != "skipped":
+            stages += f"  |  actions: {render(result['actions'])}"
         print(stages)
         if result["detail"]:
             print(f"  {DIM}{result['detail']}{NC}")
 
     # ---- Summary -----------------------------------------------------------
+    # A repo counts once for a status found in any of its stages.
+    STAGES = ("actions", "stage_a", "stage_b")
+
     def count(*statuses):
         return sum(1 for r in results
-                   if r["stage_a"] in statuses or r["stage_b"] in statuses)
+                   if any(r[s] in statuses for s in STAGES))
 
     changed = count("synced", "integrated")
     conflicts = count("conflict")
     errors = count("error", "no-mirror-branch", "not-a-fork")
+    archived = count("archived")
 
     print()
     print(f"{BOLD}Summary:{NC}")
@@ -543,14 +622,15 @@ Examples:
     print(f"  Updated:    {GREEN}{changed}{NC}")
     print(f"  Conflicts:  {YELLOW}{conflicts}{NC}")
     print(f"  Errors:     {RED}{errors}{NC}")
+    print(f"  Archived:   {DIM}{archived} skipped{NC}")
 
     problems = [r for r in results
-                if r["stage_a"] in PROBLEM_STATUSES or r["stage_b"] in PROBLEM_STATUSES]
+                if any(r[s] in PROBLEM_STATUSES for s in STAGES)]
 
     if problems:
         print()
         for r in problems:
-            for stage in ("stage_a", "stage_b"):
+            for stage in STAGES:
                 if r[stage] in PROBLEM_STATUSES:
                     print(f"  {render(r[stage])}  {r['repo']}  {DIM}{r['detail']}{NC}")
     print()

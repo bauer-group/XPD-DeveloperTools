@@ -49,6 +49,16 @@ need no workflow installed:
    in the parent, so a fork whose default is `workspace/main` cannot be synced
    directly.
 
+Before syncing, two guards run per fork:
+
+- **GitHub Actions is turned off** on every fork (`PUT
+  /repos/{o}/{r}/actions/permissions`, `enabled=false`). A synced fork carries
+  the upstream's `.github/workflows/*`; with Actions enabled it would run that
+  CI on every push and every cron — dozens of failing runs per sync, for code
+  we only mirror and never build. Opt out with `--keep-fork-actions`.
+- **Archived forks are skipped**, not treated as errors: they are read-only, so
+  `merge-upstream`, `merges` and the Actions toggle all return HTTP 403.
+
 Merge conflicts open (or comment on) an issue in the affected repository, using
 the same issue titles as `sync-upstream.yml` so both paths converge on one
 issue. Conflicts and errors make the job fail, so a run cannot go green while a
@@ -99,7 +109,7 @@ repositories:
 
 | Permission | Why |
 |------------|-----|
-| **Administration:** Read and write | `PUT /repos/{org}/{repo}/topics` — tagging step |
+| **Administration:** Read and write | `PUT /repos/{org}/{repo}/topics` (tagging) and `PUT /repos/{org}/{repo}/actions/permissions` (disable fork Actions) |
 | **Contents:** Read and write | `POST .../merge-upstream` and `POST .../merges` — both sync stages |
 | **Workflows:** Read and write | required whenever an upstream diff touches `.github/workflows/*` — GitHub refuses the sync otherwise, at either stage (HTTP 422, *"…without `workflow` scope"*) |
 | **Issues:** Read and write | conflict issues and their labels |
