@@ -23,10 +23,15 @@
 # │ Fine-grained permissions (on the target org, all repositories):     │
 # │   Administration:  Read and write   PUT /repos/{o}/{r}/topics       │
 # │   Contents:        Read and write   merge-upstream + merges         │
+# │   Workflows:       Read and write   sync .github/workflows/* files  │
 # │   Issues:          Read and write   conflict issues + labels        │
 # │   Metadata:        Read             always granted; repo listing    │
 # │                                                                     │
-# │ Classic PAT equivalent: `repo` (plus `read:org` for org listing).   │
+# │ Without Workflows, the sync is refused with HTTP 422 the moment     │
+# │ an upstream diff touches .github/workflows/* - which most active    │
+# │ upstreams do, so the sync fails for nearly every fork.              │
+# │                                                                     │
+# │ Classic PAT equivalent: `repo` + `workflow` (plus `read:org`).      │
 # └─────────────────────────────────────────────────────────────────────┘
 # =============================================================================
 

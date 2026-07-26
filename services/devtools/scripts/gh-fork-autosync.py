@@ -92,6 +92,33 @@ def is_conflict(output: str) -> bool:
     return "http 409" in lowered or "merge conflict" in lowered
 
 
+def is_workflow_scope_error(output: str) -> bool:
+    """Recognise GitHub's refusal to touch .github/workflows/* without the
+    workflow capability.
+
+    merge-upstream and merges are ordinary content writes to GitHub, so the
+    instant an upstream diff contains a workflow file the sync is refused with
+    HTTP 422 unless the token carries the classic `workflow` scope (or, for a
+    fine-grained PAT, Workflows: write). Most active upstreams ship CI, so this
+    otherwise reads as an opaque error for nearly every fork - see issue #1.
+    """
+    lowered = output.lower()
+    return ("refusing to allow" in lowered
+            and "workflow" in lowered
+            and "scope" in lowered)
+
+
+# Actionable detail shown in the console and the collector issue in place of the
+# raw API blob, so the fix (grant the workflow capability) is obvious. Kept
+# endpoint-agnostic: both sync stages (merge-upstream, merges) can raise it, and
+# the collector table already names the stage - so this states the cause only.
+WORKFLOW_SCOPE_DETAIL = (
+    "token lacks the workflow capability - grant Workflows: write "
+    "(fine-grained PAT) or the `workflow` scope (classic PAT); "
+    "this sync step cannot write .github/workflows/*"
+)
+
+
 def discover_forks(org: str, topic: Optional[str], limit: int) -> Optional[Tuple[List[Dict], bool]]:
     """List forks in an org, optionally narrowed to one topic.
 
@@ -172,6 +199,9 @@ def sync_mirror(repo: str, branch: str) -> Tuple[str, str]:
     if is_conflict(out):
         return "conflict", "diverged from upstream"
 
+    if is_workflow_scope_error(out):
+        return "error", WORKFLOW_SCOPE_DETAIL
+
     return "error", out.splitlines()[0] if out else "unknown error"
 
 
@@ -194,6 +224,9 @@ def merge_forward(repo: str, base: str, head: str) -> Tuple[str, str]:
 
     if is_conflict(out):
         return "conflict", "merge conflict"
+
+    if is_workflow_scope_error(out):
+        return "error", WORKFLOW_SCOPE_DETAIL
 
     return "error", out.splitlines()[0] if out else "unknown error"
 

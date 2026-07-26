@@ -101,10 +101,17 @@ repositories:
 |------------|-----|
 | **Administration:** Read and write | `PUT /repos/{org}/{repo}/topics` — tagging step |
 | **Contents:** Read and write | `POST .../merge-upstream` and `POST .../merges` — both sync stages |
+| **Workflows:** Read and write | required whenever an upstream diff touches `.github/workflows/*` — GitHub refuses the sync otherwise, at either stage (HTTP 422, *"…without `workflow` scope"*) |
 | **Issues:** Read and write | conflict issues and their labels |
 | **Metadata:** Read | always granted; lists and reads org repos |
 
-Classic PAT equivalent: `repo`, plus `read:org` for the org-wide repo listing.
+> **Workflows is not optional.** `merge-upstream` is a plain content write, so
+> syncing a fork whose upstream ships CI needs the same capability as editing a
+> workflow file by hand. Without it the sync fails for nearly every fork with a
+> `422` — see [issue #1](https://github.com/bauer-group/XPD-DeveloperTools/issues/1).
+
+Classic PAT equivalent: `repo` + `workflow`, plus `read:org` for the org-wide
+repo listing.
 
 Running the broader **manual** scripts (`gh-branch-protection`,
 `gh-codeowners-sync`, `gh-webhook-manager`, `gh-secrets-audit`, …) requires the
