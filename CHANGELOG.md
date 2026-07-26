@@ -1,3 +1,9 @@
+## [0.22.2](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.22.1...v0.22.2) (2026-07-26)
+
+### 🐛 Bug Fixes
+
+* **gh-fork-autosync:** stopped fork CI runs and archived errors ([42a1ed3](https://github.com/bauer-group/XPD-DeveloperTools/commit/42a1ed384e26bd119fa56ce3745038bb8a886f58)), closes [#1](https://github.com/bauer-group/XPD-DeveloperTools/issues/1)
+
 ## [0.22.1](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.22.0...v0.22.1) (2026-07-26)
 
 ### 🐛 Bug Fixes
