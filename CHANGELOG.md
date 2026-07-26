@@ -1,3 +1,9 @@
+## [0.22.1](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.22.0...v0.22.1) (2026-07-26)
+
+### 🐛 Bug Fixes
+
+* **gh-fork-autosync:** required the workflow PAT capability ([b51bd08](https://github.com/bauer-group/XPD-DeveloperTools/commit/b51bd08bface0a2c08b88ba4065a53049463efee)), closes [#1](https://github.com/bauer-group/XPD-DeveloperTools/issues/1) [#1](https://github.com/bauer-group/XPD-DeveloperTools/issues/1)
+
 ## [0.22.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.21.0...v0.22.0) (2026-07-20)
 
 ### 🚀 Features
