@@ -17,6 +17,13 @@
 #     upstream's .github/workflows/*, so with Actions on it would run that CI
 #     on each push and cron - dozens of failing runs per sync for code we only
 #     mirror. The mirrors are code copies, not build targets.
+#
+#     This is a weekly reconcile, not a one-off: a fork switched back on by
+#     hand is switched off again on the next run. A fork that is genuinely
+#     developed in needs a standing exemption instead - give it the
+#     `keep-actions` topic:
+#         gh repo edit mirrored-projects/<repo> --add-topic keep-actions
+#     The sync then reports it as "actions kept (topic)" and leaves it alone.
 #   - Archived forks are read-only and are skipped, not treated as errors.
 #
 # ┌─ Token ─────────────────────────────────────────────────────────────┐

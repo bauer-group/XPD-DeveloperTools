@@ -30,8 +30,14 @@ Two guards run per repository before the stages:
   * GitHub Actions is turned off on every fork (PUT .../actions/permissions,
     enabled=false). A synced fork carries the upstream's .github/workflows/*, so
     with Actions on it would run that CI on every push and cron - dozens of
-    failing runs per sync for code we only mirror. Opt out with
-    --keep-fork-actions.
+    failing runs per sync for code we only mirror.
+
+    This runs on every sync, so it also re-disables a fork someone switched back
+    on. A fork that is genuinely developed in, not just mirrored, therefore needs
+    a standing exemption: give it the `keep-actions` topic (--keep-actions-topic,
+    --keep-actions-topic '' to honour none). The exemption lives on the
+    repository rather than in this script so it stays visible where the decision
+    applies. --keep-fork-actions opts out for a whole run instead.
   * Archived forks are read-only and are skipped, not synced: every write to
     them (merge-upstream, merges, the Actions toggle) returns HTTP 403.
 
@@ -130,6 +136,16 @@ WORKFLOW_SCOPE_DETAIL = (
 )
 
 
+def topics_of(repo: Dict) -> List[str]:
+    """Flatten the repositoryTopics of a `gh repo list` record to plain names.
+
+    gh returns [{"name": ...}] or null, so both the topic filter and the Actions
+    exemption read it through here - no second API call per repository, the
+    discovery listing already carries the topics.
+    """
+    return [t["name"] for t in (repo.get("repositoryTopics") or [])]
+
+
 def discover_forks(org: str, topic: Optional[str], limit: int) -> Optional[Tuple[List[Dict], bool]]:
     """List forks in an org, optionally narrowed to one topic.
 
@@ -155,12 +171,7 @@ def discover_forks(org: str, topic: Optional[str], limit: int) -> Optional[Tuple
     truncated = len(repos) >= limit
 
     if topic:
-        selected = []
-        for repo in repos:
-            topics = [t["name"] for t in (repo.get("repositoryTopics") or [])]
-            if topic in topics:
-                selected.append(repo)
-        repos = selected
+        repos = [r for r in repos if topic in topics_of(r)]
 
     return repos, truncated
 
@@ -385,8 +396,15 @@ def collector_body(org: str, problems: List[Dict], run_url: Optional[str]) -> st
     return "\n".join(lines)
 
 
-def process_repo(repo: str, dry_run: bool, disable_actions: bool = True) -> Dict:
-    """Run both stages for one repository and return a result record."""
+def process_repo(repo: str, dry_run: bool, keep_actions: Optional[str] = None) -> Dict:
+    """Run both stages for one repository and return a result record.
+
+    keep_actions: None disables the fork's Actions (the default). Any other value
+    leaves them alone and is reported as the `actions` status - "kept" for the
+    run-wide --keep-fork-actions, "exempt" for the opt-out topic. Carrying the
+    reason rather than a bare flag keeps the console line and the job summary
+    self-explaining: an exemption nobody can see is one nobody can review.
+    """
     result = {"repo": repo, "mirror": None, "target": None,
               "stage_a": "skipped", "stage_b": "skipped",
               "actions": "skipped", "detail": ""}
@@ -419,8 +437,8 @@ def process_repo(repo: str, dry_run: bool, disable_actions: bool = True) -> Dict
     # Keep the fork from running its upstream's CI. Done first - and for every
     # fork, not just the ones that get updated - so the merge-upstream push below
     # cannot trigger a workflow and a fork left enabled earlier is corrected too.
-    if not disable_actions:
-        result["actions"] = "kept"
+    if keep_actions:
+        result["actions"] = keep_actions
     elif dry_run:
         result["actions"] = "dry-run"
     else:
@@ -483,6 +501,7 @@ STATUS_STYLE = {
     "skipped": (DIM, "-"),
     "disabled": (DIM, "actions off"),
     "kept": (DIM, "actions kept"),
+    "exempt": (CYAN, "actions kept (topic)"),
     "archived": (DIM, "archived"),
     "conflict": (YELLOW, "CONFLICT"),
     "no-mirror-branch": (YELLOW, "no mirror branch"),
@@ -517,6 +536,10 @@ Examples:
 
   # Single repository
   gh-fork-autosync.py -o mirrored-projects --repo Bugsink
+
+  # Let a fork you actually develop in keep its Actions, permanently:
+  #   gh repo edit mirrored-projects/MS365-SMTPGateway --add-topic keep-actions
+  # every later sync then reports it as "actions kept (topic)".
         """
     )
     parser.add_argument("-o", "--org", required=True,
@@ -538,10 +561,20 @@ Examples:
                              "mirror never runs its upstream's CI (the synced "
                              ".github/workflows/* would otherwise fire on each "
                              "push and on cron).")
+    parser.add_argument("--keep-actions-topic", default="keep-actions",
+                        metavar="TOPIC",
+                        help="Per-repo opt-out: forks carrying this topic keep "
+                             "their Actions enabled while every other fork is "
+                             "disabled on each run (default: keep-actions). "
+                             "For forks that are actually developed in, not "
+                             "just mirrored. Pass '' to exempt nothing.")
     parser.add_argument("--limit", type=int, default=1000,
                         help="Max repos to fetch (default: 1000)")
 
     args = parser.parse_args()
+
+    # An empty (or whitespace) topic means: exempt nothing, disable everywhere.
+    exempt_topic = (args.keep_actions_topic or "").strip()
 
     if not check_gh_auth():
         print(f"{RED}[ERROR] GitHub CLI not authenticated{NC}")
@@ -575,6 +608,16 @@ Examples:
     if truncated:
         print(f"{YELLOW}[WARN] Result hit --limit {args.limit}; the org may hold "
               f"more repositories that were not processed.{NC}")
+
+    # State the Actions policy up front. It is applied on every run, so a reader
+    # of the job summary should not have to infer it from the per-repo lines.
+    if args.keep_fork_actions:
+        print("Actions: left untouched on every fork (--keep-fork-actions)")
+    elif exempt_topic:
+        print(f"Actions: disabled on every fork, except those tagged "
+              f"'{exempt_topic}'")
+    else:
+        print("Actions: disabled on every fork (no exemption topic)")
     print()
 
     if not repos:
@@ -589,9 +632,18 @@ Examples:
     results = []
     for repo in repos:
         name = repo["nameWithOwner"]
+
+        # Run-wide flag first, then the per-repo topic. Both end in the same
+        # place; only the reported reason differs.
+        if args.keep_fork_actions:
+            keep_actions = "kept"
+        elif exempt_topic and exempt_topic in topics_of(repo):
+            keep_actions = "exempt"
+        else:
+            keep_actions = None
+
         print(f"{CYAN}→{NC} {name}")
-        result = process_repo(name, args.dry_run,
-                              disable_actions=not args.keep_fork_actions)
+        result = process_repo(name, args.dry_run, keep_actions=keep_actions)
         results.append(result)
 
         stages = f"  mirror({result['mirror'] or '?'}): {render(result['stage_a'])}"

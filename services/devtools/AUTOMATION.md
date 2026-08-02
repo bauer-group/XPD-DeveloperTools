@@ -55,9 +55,30 @@ Before syncing, two guards run per fork:
   /repos/{o}/{r}/actions/permissions`, `enabled=false`). A synced fork carries
   the upstream's `.github/workflows/*`; with Actions enabled it would run that
   CI on every push and every cron — dozens of failing runs per sync, for code
-  we only mirror and never build. Opt out with `--keep-fork-actions`.
+  we only mirror and never build.
 - **Archived forks are skipped**, not treated as errors: they are read-only, so
   `merge-upstream`, `merges` and the Actions toggle all return HTTP 403.
+
+#### Keeping Actions on for a fork
+
+The Actions toggle is a **weekly reconcile, not a one-off** — a fork switched
+back on by hand is switched off again on the next run. A fork that is genuinely
+developed in, rather than only mirrored, needs a standing exemption:
+
+```bash
+gh repo edit mirrored-projects/<repo> --add-topic keep-actions
+```
+
+Later runs then report it as `actions kept (topic)` and leave it alone. The
+exemption lives on the repository, so it stays visible where the decision
+applies — and the weekly tagging step is purely additive (`--add-topic`), so
+`forked-repo` and `keep-actions` coexist.
+
+| Scope | How |
+|-------|-----|
+| One fork, permanently | `keep-actions` topic (rename it via `--keep-actions-topic`) |
+| One run, all forks | `--keep-fork-actions` |
+| No exemptions at all | `--keep-actions-topic ''` |
 
 Merge conflicts open (or comment on) an issue in the affected repository, using
 the same issue titles as `sync-upstream.yml` so both paths converge on one
