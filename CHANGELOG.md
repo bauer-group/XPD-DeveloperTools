@@ -1,3 +1,9 @@
+## [0.24.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.23.0...v0.24.0) (2026-08-11)
+
+### 🚀 Features
+
+* **repo-mirror:** added repo move migration ([18f6a2f](https://github.com/bauer-group/XPD-DeveloperTools/commit/18f6a2fed15def8a28600a432f47a6d10566b3a6))
+
 ## [0.23.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.22.2...v0.23.0) (2026-08-02)
 
 ### 🚀 Features
