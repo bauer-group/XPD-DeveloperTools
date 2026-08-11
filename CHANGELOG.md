@@ -1,3 +1,9 @@
+## [0.23.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.22.2...v0.23.0) (2026-08-02)
+
+### 🚀 Features
+
+* **gh-fork-autosync:** added Actions opt-out ([56205f4](https://github.com/bauer-group/XPD-DeveloperTools/commit/56205f41292d820ee7fc3ca6f2221541abc983b9))
+
 ## [0.22.2](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.22.1...v0.22.2) (2026-07-26)
 
 ### 🐛 Bug Fixes
