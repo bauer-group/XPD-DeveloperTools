@@ -354,7 +354,7 @@ into one JSON manifest, then recreates that tree 1:1 on another machine.
 # Source machine: analyse the tree and write the manifest
 python scripts/repo-mirror.py scan -o repos.json
 
-# Target machine: recreate folders, clone what's missing, fast-forward the rest
+# Target machine: migrate moved repos, clone what's missing, fast-forward the rest
 python scripts/repo-mirror.py restore -i repos.json
 python scripts/repo-mirror.py restore -i repos.json --dry-run   # preview, touch nothing
 
@@ -362,10 +362,20 @@ python scripts/repo-mirror.py restore -i repos.json --dry-run   # preview, touch
 python scripts/repo-mirror.py scan -x 'Archive*' -x 'eCommerce/legacy'
 ```
 
+**Reorganising the source tree migrates the target instead of duplicating it.**
+Repos are identified by their normalised remote URL and their root-commit
+fingerprint, not by their path, so a repo that moved to another folder (or was
+renamed on GitHub) is relocated with a directory rename — moves, renames, swaps
+and nested repos included. A repo that was found but could not be placed is
+never cloned a second time.
+
 Existing repos are only ever **fast-forwarded**; anything with local changes, a
 detached HEAD or no upstream is left untouched. Submodules are restored via
 `--recurse-submodules` and refreshed with `submodule update --init --recursive`.
-See [scripts/repo-mirror.md](scripts/repo-mirror.md) for the full reference.
+The only irreversible step — removing a folder a move left empty — is confirmed
+folder by folder (`y`/`n`/`all`/`none`) and never happens unattended.
+See [scripts/repo-mirror.md](scripts/repo-mirror.md) for the full reference,
+and `python scripts/repo-mirror.test.py` for the self-test.
 
 ---
 
@@ -451,6 +461,7 @@ DeveloperTools/
 ├── scripts/                 # Host-side tools & generators (run on host Python)
 │   ├── ghcr-token.py        # ghcr.io pull credential: validate + emit login commands
 │   ├── repo-mirror.py       # Mirror a folder tree of git repos across machines
+│   ├── repo-mirror.test.py  # Self-test for repo-mirror (throwaway git playground)
 │   ├── claude-backup.py     # Backup/restore Claude Code config
 │   ├── requirements.txt     # Host tool dependencies (rich)
 │   ├── generate-tools-json.ps1
