@@ -75,6 +75,10 @@
       "labels": ["driver", "device-driver", "system-software"],
       "description": "Device drivers for Linux and Windows (kernel and user-space)"
     },
+    "OT-": {
+      "labels": ["operational-technology", "industrial-automation", "iot"],
+      "description": "Operational technology: industrial automation and IoT solutions"
+    },
     "EXT-": {
       "labels": ["extension", "plugin", "addon"],
       "description": "Platform-agnostic extensions and plugins"
