@@ -1,3 +1,9 @@
+## [0.25.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.24.0...v0.25.0) (2026-08-23)
+
+### 🚀 Features
+
+* **config:** added OT- repo classification prefix ([de98d73](https://github.com/bauer-group/XPD-DeveloperTools/commit/de98d738e518f18072362c65bdb0c08e8a44203b))
+
 ## [0.24.0](https://github.com/bauer-group/XPD-DeveloperTools/compare/v0.23.0...v0.24.0) (2026-08-11)
 
 ### 🚀 Features
